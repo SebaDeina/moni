@@ -53,7 +53,7 @@ async function onMessage(msg: IncomingMessage) {
         await whatsapp.sendText(msg.from, "No llegué a entender el audio. ¿Me lo mandás de nuevo o por escrito?");
         return;
       }
-      reply = `🎙️ "${heard}"\n\n${await handleUserText(user, heard)}`;
+      reply = await handleUserText(user, heard);
     } else {
       reply = await handleUserText(user, msg.text ?? "");
     }
