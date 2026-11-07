@@ -1,15 +1,18 @@
 import { randomUUID } from "node:crypto";
 import {
   NotImplemented,
+  canAffordSponsored,
   canAffordToken,
   explorerTxUrl,
   formatTokenAmount,
   isToken,
   parseTokenAmount,
   sendTransfer,
+  topUpGas,
+  treasuryAddress,
   type Token,
 } from "./chain/index.js";
-import { FUJI_CHAIN_ID } from "./config.js";
+import { FUJI_CHAIN_ID, config } from "./config.js";
 import { createConfirmation } from "./confirmations.js";
 import { findContact, listAliases, type Contact } from "./contacts.js";
 import { db } from "./db/index.js";
@@ -21,6 +24,9 @@ export const MAX_TRANSFER: Record<Token, bigint> = {
   USDC: parseTokenAmount("100", "USDC"),
 };
 export const formatAmount = (units: bigint, token: Token) => `${formatTokenAmount(units, token)} ${token}`;
+
+/** El gas lo paga la tesorería si está activado y configurada. */
+const gasSponsored = () => config.SPONSOR_GAS && treasuryAddress() !== null;
 
 export type PreparedTransfer =
   | { code: string; operationId: string; alias: string; address: `0x${string}`; amount: string }
@@ -51,7 +57,12 @@ export async function prepareTransfer(
   if (amount <= 0n) return { error: "El monto tiene que ser mayor a cero." };
   if (amount > MAX_TRANSFER[token]) return { error: `El máximo por transferencia es ${formatAmount(MAX_TRANSFER[token], token)}.` };
   try {
-    if (!(await canAffordToken(wallet.address, token, amount, contact.address))) {
+    if (gasSponsored()) {
+      const check = await canAffordSponsored(wallet.address, token, amount, contact.address);
+      if (!check.ok) {
+        return { error: check.reason === "tesoreria" ? "Moni no tiene saldo para pagar el gas ahora. Probá en un rato." : `No alcanza: tenés menos de ${formatAmount(amount, token)}.` };
+      }
+    } else if (!(await canAffordToken(wallet.address, token, amount, contact.address))) {
       return { error: token === "AVAX" ? "No alcanza el saldo para ese monto más el gas." : `No alcanza: necesitás ${formatAmount(amount, token)} y un poco de AVAX para el gas.` };
     }
   } catch (err) {
@@ -119,8 +130,11 @@ export async function executeConfirmedOperation(sender: string, operationId: str
 
   let preparedHash: string | undefined;
   try {
+    const account = signerFor(sender);
+    // Gas patrocinado: si al usuario no le alcanza el AVAX para el gas, la tesorería se lo recarga antes.
+    if (gasSponsored()) await topUpGas(account.address, op.token, amount, op.to_address);
     const hash = await sendTransfer({
-      account: signerFor(sender),
+      account,
       token: op.token,
       to: op.to_address,
       amount,
@@ -130,7 +144,8 @@ export async function executeConfirmedOperation(sender: string, operationId: str
       },
     });
     setStatus("sent", { tx_hash: hash });
-    return `Listo ✅ Le mandé ${formatAmount(amount, op.token)} a ${op.to_alias}.\n${explorerTxUrl(hash)}`;
+    const gasNote = gasSponsored() ? " El gas lo pagó Moni." : "";
+    return `Listo ✅ Le mandé ${formatAmount(amount, op.token)} a ${op.to_alias}.${gasNote}\n${explorerTxUrl(hash)}`;
   } catch (err) {
     setStatus("failed", { error: err instanceof Error ? err.message : String(err) });
     if (err instanceof NoWallet) return err.message;

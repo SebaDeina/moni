@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { parseEther, type Address } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { NotImplemented, explorerAddressUrl, explorerTxUrl, sendNativeTransfer, treasury } from "./chain/index.js";
+import { NotImplemented, explorerAddressUrl, explorerTxUrl, sendFromTreasury } from "./chain/index.js";
 import { config } from "./config.js";
 import { db } from "./db/index.js";
 
@@ -92,12 +92,9 @@ async function fund(phone: string, address: Address): Promise<CreatedWallet["fun
   const amountWei = parseEther(config.WELCOME_AVAX);
   if (amountWei === 0n) return null;
   try {
-    const hash = await sendNativeTransfer({
-      account: treasury(),
-      to: address,
-      amountWei,
-      onPrepared: ({ hash }) => db.prepare("UPDATE wallets SET fund_tx = ? WHERE phone = ?").run(hash, phone),
-    });
+    const hash = await sendFromTreasury(address, amountWei, ({ hash }) =>
+      db.prepare("UPDATE wallets SET fund_tx = ? WHERE phone = ?").run(hash, phone),
+    );
     return { amount: `${config.WELCOME_AVAX} AVAX`, txUrl: explorerTxUrl(hash) };
   } catch (err) {
     console.error("[wallets] no pude fondear la wallet nueva", address, String(err).slice(0, 200));

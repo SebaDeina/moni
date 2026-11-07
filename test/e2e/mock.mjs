@@ -1,5 +1,6 @@
 // Servidor falso: Kapso (envío + media), Claude (Messages API) y STT de xAI.
 import { createServer } from "node:http";
+import { keccak256 } from "viem";
 
 const sent = [];
 const sttCalls = [];
@@ -14,6 +15,8 @@ function readBody(req) {
 
 const claudeRequests = [];
 const rawTxs = [];
+const TREASURY = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"; // la clave de prueba de la tesorería
+const sentHashes = new Set();
 // Depósitos inyectados por la prueba (POST /_inject): cada uno va en un bloque nuevo.
 let head = 0x10;
 const deposits = [];
@@ -38,7 +41,8 @@ function rpc({ id, method, params }) {
   const ok = (result) => ({ jsonrpc: "2.0", id, result });
   switch (method) {
     case "eth_chainId": return ok("0xa869");
-    case "eth_getBalance": return ok("0xde0b6b3a7640000"); // 1 AVAX
+    // Tesorería: 1 AVAX. Usuarios: 0,1 AVAX, así mandar 0,1 AVAX obliga a recargar el gas.
+    case "eth_getBalance": return ok(String(params[0]).toLowerCase() === TREASURY ? "0xde0b6b3a7640000" : "0x16345785d8a0000");
     case "eth_estimateGas": return ok("0x5208");
     case "eth_call": return ok("0x" + (100_000_000).toString(16).padStart(64, "0")); // balanceOf: 100 USDC
     case "eth_maxPriorityFeePerGas": return ok("0x3b9aca00");
@@ -56,12 +60,22 @@ function rpc({ id, method, params }) {
       })));
     }
     case "eth_getTransactionReceipt": {
+      if (sentHashes.has(params[0])) {
+        return ok({ transactionHash: params[0], blockNumber: hex(head), blockHash: "0x" + "11".repeat(32), status: "0x1", from: TREASURY, to: TREASURY,
+          gasUsed: "0x5208", cumulativeGasUsed: "0x5208", effectiveGasPrice: "0x5d21dba00", logs: [], logsBloom: "0x" + "00".repeat(256),
+          contractAddress: null, transactionIndex: "0x0", type: "0x2" });
+      }
       const d = deposits.find((x) => x.hash === params[0]);
       return ok(d ? { transactionHash: d.hash, blockNumber: hex(d.block), blockHash: "0x" + "11".repeat(32), status: "0x1", from: d.from, to: d.to,
         gasUsed: "0x5208", cumulativeGasUsed: "0x5208", effectiveGasPrice: "0x5d21dba00", logs: [], logsBloom: "0x" + "00".repeat(256),
         contractAddress: null, transactionIndex: "0x0", type: "0x0" } : null);
     }
-    case "eth_sendRawTransaction": rawTxs.push(params[0]); return ok("0x" + "ab".repeat(32));
+    case "eth_sendRawTransaction": {
+      rawTxs.push(params[0]);
+      const h = keccak256(params[0]);
+      sentHashes.add(h);
+      return ok(h);
+    }
     default: return { jsonrpc: "2.0", id, error: { code: -32601, message: "mock: " + method } };
   }
 }

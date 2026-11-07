@@ -43,6 +43,8 @@ const Env = z.object({
   MONI_WALLET_MASTER_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
   /** AVAX que la tesorería le manda a cada wallet nueva para el gas. */
   WELCOME_AVAX: z.string().regex(/^\d+(\.\d{1,18})?$/).default("0.05"),
+  /** La tesorería paga el gas de los envíos de los usuarios ("true" o "false"). */
+  SPONSOR_GAS: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
   /** Cada cuánto se revisan los bloques nuevos para avisar depósitos. 0 = no vigilar. */
   DEPOSIT_POLL_MS: z.coerce.number().int().min(0).default(10_000),
   AVALANCHE_DATA_API_KEY: optional,

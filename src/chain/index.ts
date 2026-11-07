@@ -333,6 +333,55 @@ export async function canAffordToken(from: Address, token: Token, amount: bigint
   return avax >= gas * fees.maxFeePerGas;
 }
 
+/** Costo máximo de gas de un envío: límite estimado por el precio máximo que aceptaríamos pagar. */
+export async function transferGasCost(from: Address, token: Token, amount: bigint, to: Address): Promise<bigint> {
+  const tokenAddress = TOKENS[token].address;
+  const [gas, fees] = await Promise.all([
+    tokenAddress
+      ? publicClient.estimateContractGas({ account: from, address: tokenAddress, abi: erc20, functionName: "transfer", args: [to, amount] })
+      : publicClient.estimateGas({ account: from, to, value: amount }),
+    publicClient.estimateFeesPerGas(),
+  ]);
+  return gas * fees.maxFeePerGas;
+}
+
+// La tesorería firma de a una transacción por vez: dos envíos simultáneos pedirían el mismo nonce.
+let treasuryQueue: Promise<unknown> = Promise.resolve();
+function serializeTreasury<T>(fn: () => Promise<T>): Promise<T> {
+  const run = treasuryQueue.then(fn, fn);
+  treasuryQueue = run.catch(() => undefined);
+  return run;
+}
+
+/** AVAX desde la tesorería (saldo de bienvenida, recargas de gas). */
+export function sendFromTreasury(to: Address, amountWei: bigint, onPrepared: (p: { nonce: number; hash: `0x${string}` }) => void = () => {}) {
+  return serializeTreasury(() => sendNativeTransfer({ account: treasury(), to, amountWei, onPrepared }));
+}
+
+/**
+ * Gas patrocinado: si a `from` no le alcanza el AVAX para el gas (más el monto, si manda AVAX),
+ * la tesorería le manda la diferencia con un 10% de margen y espera a que se confirme.
+ * Devuelve el hash de la recarga, o null si no hizo falta.
+ */
+export async function topUpGas(from: Address, token: Token, amount: bigint, to: Address): Promise<`0x${string}` | null> {
+  const cost = await transferGasCost(from, token, amount, to);
+  const need = cost + (TOKENS[token].address ? 0n : amount);
+  const balance = await getBalance(from);
+  if (balance >= need) return null;
+  const hash = await sendFromTreasury(from, need - balance + cost / 10n);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 30_000 });
+  if (receipt.status !== "success") throw new Error("La recarga de gas no se confirmó");
+  return hash;
+}
+
+/** Con gas patrocinado alcanza con tener lo que se manda; la tesorería tiene que poder cubrir el gas. */
+export async function canAffordSponsored(from: Address, token: Token, amount: bigint, to: Address): Promise<{ ok: boolean; reason?: "saldo" | "tesoreria" }> {
+  if (amount <= 0n) return { ok: false, reason: "saldo" };
+  if ((await getTokenBalance(from, token)) < amount) return { ok: false, reason: "saldo" };
+  const [cost, treasuryBalance] = await Promise.all([transferGasCost(from, token, amount, to), getBalance(treasury().address)]);
+  return treasuryBalance >= cost ? { ok: true } : { ok: false, reason: "tesoreria" };
+}
+
 /** Envía AVAX o un token. Mismas garantías que sendNativeTransfer (hash guardado antes de transmitir). */
 export async function sendTransfer(args: {
   account: PrivateKeyAccount;

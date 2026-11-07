@@ -53,7 +53,7 @@ echo "9e. Agenda → $(j $APP/api/me | node -e 'let d="";process.stdin.on("data"
 echo "9f. Borro a lola → $(j -X DELETE $APP/api/contacts/lola)   agenda: $(j $APP/api/me | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).contacts.map(c=>c.alias).join(", ")))')"
 echo "10. Envío a alguien fuera de la agenda → $(j -X POST $APP/api/transfers -d '{"alias":"pedro","amount":"1"}')"
 echo "11. Envío por encima del tope → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"50"}')"
-echo "12. Envío de 0,5 a caro → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"0,5"}')"
+echo "12. Envío de 0,05 a caro → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"0,05"}')"
 echo "    WhatsApp: $(last_wa)"
 CONFIRM=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
 BODY="{\"message\":{\"id\":\"wweb1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"SI $CONFIRM\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
