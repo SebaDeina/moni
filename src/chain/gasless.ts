@@ -12,7 +12,8 @@ import {
   createSmartAccountClient,
   type ZeroXgaslessSmartAccount,
 } from "#0xgasless";
-import type { Address, Hex } from "viem";
+import { createPublicClient, http, toHex, type Address, type Hex } from "viem";
+import { avalancheFuji } from "viem/chains";
 import type { PrivateKeyAccount } from "viem/accounts";
 import { config, FUJI_CHAIN_ID } from "../config.js";
 
@@ -83,6 +84,63 @@ export class SponsorshipRejected extends Error {
   }
 }
 
+/**
+ * Límites fijos para las userOps sin paymaster: el bundler de 0xGasless no estima gas en ese modo.
+ * Holgados para el caso más pesado (desplegar la cuenta + approve + deposit + setContact + pay).
+ * Lo que no se usa no se cobra; la cuenta solo necesita tener el máximo como prefondeo.
+ */
+const SELF_PAID_GAS = { callGasLimit: 600_000n, verificationGasLimit: 600_000n, preVerificationGas: 100_000n };
+
+const rpc = createPublicClient({ chain: avalancheFuji, transport: http(config.FUJI_RPC_URL) });
+
+/** Precio de gas: el que pide el bundler (si no, el de la red con margen). */
+async function gasPrice(): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }> {
+  try {
+    const res = await fetch(config.OXGASLESS_BUNDLER_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "skandha_getGasPrice", params: [] }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = (await res.json()) as { result?: { maxFeePerGas: Hex; maxPriorityFeePerGas: Hex } };
+    if (body.result) return { maxFeePerGas: BigInt(body.result.maxFeePerGas), maxPriorityFeePerGas: BigInt(body.result.maxPriorityFeePerGas) };
+  } catch {
+    // seguimos con el precio de la red
+  }
+  const fees = await rpc.estimateFeesPerGas();
+  return { maxFeePerGas: fees.maxFeePerGas * 2n, maxPriorityFeePerGas: fees.maxPriorityFeePerGas };
+}
+
+/** Sin paymaster: armamos la userOp con límites fijos, la firma el dueño y la cuenta paga su gas. */
+async function sendSelfPaid(account: ZeroXgaslessSmartAccount, calls: Call[]) {
+  // biome-ignore lint: métodos internos del SDK que no están en src/types (los usa también scripts/gasless-smoke.ts)
+  const a = account as any;
+  const price = await gasPrice();
+  const userOp = {
+    sender: await account.getAccountAddress(),
+    nonce: toHex(await a.getNonce()),
+    initCode: await a.getInitCode(),
+    callData: await a.encodeExecuteBatch(
+      calls.map((c) => c.to),
+      calls.map((c) => c.value),
+      calls.map((c) => c.data),
+    ),
+    callGasLimit: toHex(SELF_PAID_GAS.callGasLimit),
+    verificationGasLimit: toHex(SELF_PAID_GAS.verificationGasLimit),
+    preVerificationGas: toHex(SELF_PAID_GAS.preVerificationGas),
+    maxFeePerGas: toHex(price.maxFeePerGas),
+    maxPriorityFeePerGas: toHex(price.maxPriorityFeePerGas),
+    paymasterAndData: "0x",
+  };
+  return a.sendUserOp(userOp) as ReturnType<typeof account.sendTransaction>;
+}
+
+/** Prefondeo máximo de una userOp sin paymaster: lo que la cuenta tiene que tener para que la acepten. */
+export async function selfPaidMaxCost(): Promise<bigint> {
+  const { maxFeePerGas } = await gasPrice();
+  return (SELF_PAID_GAS.callGasLimit + SELF_PAID_GAS.verificationGasLimit + SELF_PAID_GAS.preVerificationGas) * maxFeePerGas;
+}
+
 export type UserOpResult = { userOpHash: Hex; txHash: Hex; success: boolean; reason?: string; sponsored: boolean };
 
 /**
@@ -99,7 +157,9 @@ export async function sendUserOp(
   const account = await smartAccount(owner);
   let res: Awaited<ReturnType<typeof account.sendTransaction>>;
   try {
-    res = await account.sendTransaction(calls, sponsored ? { paymasterServiceData: { mode: PaymasterMode.SPONSORED } } : undefined);
+    res = sponsored
+      ? await account.sendTransaction(calls, { paymasterServiceData: { mode: PaymasterMode.SPONSORED } })
+      : await sendSelfPaid(account, calls);
   } catch (err) {
     // Antes de que el bundler la acepte no salió nada: con paymaster, el que llama puede reintentar sin él.
     if (sponsored) throw new SponsorshipRejected(String((err as Error)?.message ?? err).slice(0, 200));

@@ -30,7 +30,7 @@ import { avalancheFuji } from "viem/chains";
 import { z } from "zod";
 import { config, FUJI_CHAIN_ID } from "../config.js";
 import { NotImplemented } from "./errors.js";
-import { SponsorshipRejected, canSponsor, sendUserOp, type Call, type UserOpResult } from "./gasless.js";
+import { SponsorshipRejected, canSponsor, selfPaidMaxCost, sendUserOp, type Call, type UserOpResult } from "./gasless.js";
 
 export { NotImplemented };
 export { canSponsor, smartAccountAddress } from "./gasless.js";
@@ -460,7 +460,10 @@ export async function canSend(from: Address, token: Token, amount: bigint): Prom
 /** Sin paymaster: la tesorería le deja a la smart account el AVAX para su gas (y espera la confirmación). */
 async function topUpForUserOp(from: Address, token: Token, amount: bigint): Promise<void> {
   if (!config.SPONSOR_GAS || treasuryAddress() === null) return;
-  const need = USEROP_GAS_RESERVE + (TOKENS[token].address ? 0n : amount);
+  // El EntryPoint exige que la cuenta cubra el máximo posible (límites × precio), con margen.
+  const maxCost = await selfPaidMaxCost();
+  const reserve = maxCost * 3n / 2n > USEROP_GAS_RESERVE ? maxCost * 3n / 2n : USEROP_GAS_RESERVE;
+  const need = reserve + (TOKENS[token].address ? 0n : amount);
   const balance = await getBalance(from);
   if (balance >= need) return;
   const hash = await sendFromTreasury(from, need - balance);
