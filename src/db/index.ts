@@ -42,6 +42,18 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- Contactos pedidos por chat, pendientes de "SI <código>" (mismas reglas que las transferencias).
+  CREATE TABLE IF NOT EXISTS contact_requests (
+    id          TEXT PRIMARY KEY,
+    owner       TEXT NOT NULL,
+    alias       TEXT NOT NULL,
+    address     TEXT NOT NULL,
+    code        TEXT NOT NULL,
+    expires_at  INTEGER NOT NULL,
+    consumed_at INTEGER,
+    created_at  INTEGER NOT NULL
+  );
+
   -- Códigos "SI <código>": vencen a los 2 minutos y se consumen una sola vez.
   CREATE TABLE IF NOT EXISTS confirmations (
     code         TEXT NOT NULL,

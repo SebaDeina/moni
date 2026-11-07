@@ -1,8 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 /**
- * Las cuatro herramientas cerradas del agente. Ninguna firma: proponer una transferencia
- * solo genera un código que el usuario confirma por fuera del modelo.
+ * Las herramientas cerradas del agente. Ninguna firma ni escribe: proponer una transferencia o un
+ * contacto solo genera un código que el usuario confirma por fuera del modelo.
  */
 export const tools: Anthropic.Beta.BetaTool[] = [
   {
@@ -28,6 +28,27 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       "Cuánto salió desde el lunes (hora de Buenos Aires): valor enviado en transacciones exitosas y gas pagado, por separado.",
     strict: true,
     input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+  },
+  {
+    name: "list_contacts",
+    description: "Agenda del usuario: nombre y dirección de cada contacto al que se le puede mandar plata.",
+    strict: true,
+    input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+  },
+  {
+    name: "propose_add_contact",
+    description:
+      "Prepara agendar un contacto nuevo (nombre + dirección 0x de Avalanche). No lo agrega: devuelve un código que el usuario debe responder con 'SI <código>'.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        alias: { type: "string", description: "Nombre corto para el contacto, por ejemplo 'caro'." },
+        address: { type: "string", description: "Dirección 0x de 40 caracteres hex, tal como la escribió el usuario." },
+      },
+      required: ["alias", "address"],
+      additionalProperties: false,
+    },
   },
   {
     name: "propose_native_transfer",

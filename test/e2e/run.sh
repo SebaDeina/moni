@@ -43,6 +43,11 @@ STICKER='{"message":{"id":"w12","type":"sticker","from":"5491100000000","kapso":
 echo "12. Sticker → $(post "$STICKER")"; last_sent
 BATCH="{\"type\":\"whatsapp.message.received\",\"batch\":true,\"data\":[$(text_msg w13 uno),$(text_msg w14 dos)]}"
 echo "13. Batch de 2 → $(post "$BATCH")"; sleep 1; last_sent
+echo "14. 'agendá a pedro' → $(post "$(text_msg w15 'agenda a pedro 0x4444444444444444444444444444444444444444')")"; last_sent
+CCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
+echo "15. Confirmo el contacto con SI $CCODE → $(post "$(text_msg w16 "SI $CCODE")")"; last_sent
+echo "16. Reuso el código del contacto → $(post "$(text_msg w17 "SI $CCODE")")"; last_sent
+echo "17. Ahora 'mandale a pedro' → $(post "$(text_msg w18 'mandale 0.1 a pedro')")"; last_sent
 echo "--- requests a Claude (modelo, beta, fallbacks, effort, roles)"
 curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const r=JSON.parse(d).claudeRequests;console.log(r.length+" requests; primera:",JSON.stringify(r[0]));console.log("con historial:",JSON.stringify(r.at(-1).roles))})'
 echo "--- operaciones en la base"

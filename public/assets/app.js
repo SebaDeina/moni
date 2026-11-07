@@ -127,22 +127,79 @@
     const pub = await api("/public").catch(() => null);
     if (pub && pub.contract) $("contract").replaceChildren(addressWithCopy(pub.contract.address, pub.contract.url));
 
-    const select = $("send-alias");
-    select.replaceChildren(...me.contacts.map((c) => el("option", { value: c.alias, textContent: c.alias })));
-    $("send-btn").disabled = me.contacts.length === 0;
-    $("contacts-count").textContent = me.contacts.length ? String(me.contacts.length) : "";
-    $("contacts").replaceChildren(
-      ...(me.contacts.length
-        ? me.contacts.map((c) =>
-            el("div", { className: "item" }, el("span", { className: "what", textContent: c.alias }), el("span", { className: "side" }, extLink(c.url, short(c.address) + " ↗"))),
-          )
-        : [el("p", { className: "empty", textContent: "Todavía no hay contactos en la agenda. Se cargan desde la configuración de Moni." })]),
-    );
+    renderContacts(me.contacts);
 
     await loadActivity();
     clearInterval(pollTimer);
     pollTimer = setInterval(loadActivity, 5000);
   }
+
+  // ---------- Agenda ----------
+  function renderContacts(contacts) {
+    const select = $("send-alias");
+    const current = select.value;
+    select.replaceChildren(...contacts.map((c) => el("option", { value: c.alias, textContent: c.alias })));
+    if (contacts.some((c) => c.alias === current)) select.value = current;
+    $("send-btn").disabled = contacts.length === 0;
+    $("contacts-count").textContent = contacts.length ? String(contacts.length) : "";
+    $("contacts").replaceChildren(
+      ...(contacts.length
+        ? contacts.map((c) => {
+            const side = el("span", { className: "side" }, extLink(c.url, short(c.address) + " ↗"));
+            if (c.shared) side.append(el("span", { className: "chip", textContent: "compartido" }));
+            else side.append(removeButton(c.alias));
+            return el("div", { className: "item" }, el("span", { className: "what", textContent: c.alias }), side);
+          })
+        : [el("p", { className: "empty", textContent: "Todavía no hay contactos. Agregá el primero acá abajo o pedíselo a Moni por WhatsApp." })]),
+    );
+  }
+
+  /** Borrar pide dos clics: el primero cambia el texto a "¿Borrar?". */
+  function removeButton(alias) {
+    const btn = el("button", { className: "remove", type: "button", textContent: "Borrar" });
+    btn.addEventListener("click", async () => {
+      if (btn.dataset.armed !== "1") {
+        btn.dataset.armed = "1";
+        btn.textContent = "¿Borrar?";
+        setTimeout(() => { btn.dataset.armed = ""; btn.textContent = "Borrar"; }, 3000);
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await api("/contacts/" + encodeURIComponent(alias), { method: "DELETE" });
+        await refreshContacts();
+      } catch (err) {
+        $("contact-error").textContent = err.message;
+        btn.disabled = false;
+      }
+    });
+    return btn;
+  }
+
+  async function refreshContacts() {
+    const me = await api("/me");
+    renderContacts(me.contacts);
+  }
+
+  $("form-contact").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = e.submitter;
+    btn.disabled = true;
+    $("contact-error").textContent = "";
+    try {
+      await api("/contacts", {
+        method: "POST",
+        body: JSON.stringify({ alias: $("contact-alias").value, address: $("contact-address").value }),
+      });
+      $("contact-alias").value = "";
+      $("contact-address").value = "";
+      await refreshContacts();
+    } catch (err) {
+      $("contact-error").textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   function statusOf(op) {
     if (op.status === "proposed" && Date.now() - op.createdAt > CONFIRM_WINDOW_MS) return STATUS.expired;

@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { formatEther } from "viem";
 import * as chain from "../chain/index.js";
 import { consumeConfirmation, parseConfirmation } from "../confirmations.js";
+import { confirmContact, listContacts, proposeContact } from "../contacts.js";
 import { executeConfirmedOperation, prepareTransfer } from "../operations.js";
 import { config } from "../config.js";
 import { MODEL, claude } from "./llm.js";
@@ -23,6 +24,8 @@ Reglas:
 - Usá solo las herramientas para saldos, movimientos y transferencias. Nunca inventes montos, direcciones ni hashes.
 - Para mandar plata, usá propose_native_transfer con el alias exacto de la agenda y el monto en AVAX. Si el contacto no existe o es ambiguo, preguntá; mostrá los contactos disponibles.
 - Vos nunca enviás plata: propose_native_transfer devuelve un código y el usuario confirma respondiendo "SI <código>". Decíselo con el código exacto y aclaralo: vence en 2 minutos.
+- Para agendar a alguien, usá propose_add_contact con el nombre y la dirección 0x que te pasaron, y pedí el mismo "SI <código>". Nunca inventes ni completes una dirección: si falta o está incompleta, pedila.
+- Para saber a quién se le puede mandar, usá list_contacts.
 - Si piden algo en pesos o dólares, explicá que por ahora Moni opera en AVAX y pedí el monto en AVAX.
 - Si una herramienta dice que algo todavía no está disponible, decilo tal cual, sin inventar el resultado.
 - "Qué gasté" son dos cosas separadas: lo enviado en transacciones exitosas y el gas pagado (incluidas las fallidas).`;
@@ -67,6 +70,15 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
         return { enviado: avax(w.sentWei), gas: avax(w.gasWei), desde: new Date(w.since).toISOString() };
       }
 
+      case "list_contacts":
+        return listContacts(sender).map((c) => ({ nombre: c.alias, direccion: c.address, compartido: c.shared }));
+
+      case "propose_add_contact": {
+        const proposed = proposeContact(sender, String(args.alias ?? ""), String(args.address ?? ""));
+        if ("error" in proposed) return proposed;
+        return { codigo: proposed.code, nombre: proposed.alias, direccion: proposed.address, vence_en: "2 minutos" };
+      }
+
       case "propose_native_transfer": {
         const prepared = await prepareTransfer(sender, String(args.alias ?? ""), String(args.amountAvax ?? ""));
         if ("error" in prepared) return prepared;
@@ -89,8 +101,10 @@ export async function handleUserText(sender: string, text: string): Promise<stri
   const code = parseConfirmation(text);
   if (code) {
     const operationId = consumeConfirmation(sender, code);
-    if (!operationId) return "Ese código no es válido o ya venció. Pedime la transferencia de nuevo.";
-    return executeConfirmedOperation(sender, operationId);
+    if (operationId) return executeConfirmedOperation(sender, operationId);
+    const contactReply = confirmContact(sender, code);
+    if (contactReply) return contactReply;
+    return "Ese código no es válido o ya venció. Pedímelo de nuevo.";
   }
 
   const history = getHistory(sender);

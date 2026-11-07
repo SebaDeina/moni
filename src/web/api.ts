@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { formatEther } from "viem";
 import * as chain from "../chain/index.js";
 import { FUJI_CHAIN_ID, config } from "../config.js";
-import { listAliases, findContact } from "../contacts.js";
+import { addContact, listContacts, removeContact } from "../contacts.js";
 import { MAX_TRANSFER_WEI, listOperations, prepareTransfer } from "../operations.js";
 import { canonicalPhone, maskPhone } from "../phone.js";
 import { whatsapp } from "../whatsapp/index.js";
@@ -85,6 +85,8 @@ export function createApi(allowedSenders: Set<string>) {
   api.use("/me/*", requireSession);
   api.use("/me", requireSession);
   api.use("/transfers", requireSession);
+  api.use("/contacts", requireSession);
+  api.use("/contacts/*", requireSession);
 
   api.get("/me", async (c) => {
     const phone = c.get("phone");
@@ -95,10 +97,7 @@ export function createApi(allowedSenders: Set<string>) {
       wallet: wallet ? { address: wallet, url: chain.explorerAddressUrl(wallet) } : null,
       balance: balance === null ? null : `${formatEther(balance)} AVAX`,
       maxTransfer: `${formatEther(MAX_TRANSFER_WEI)} AVAX`,
-      contacts: listAliases().map((alias) => {
-        const address = findContact(alias)!.address;
-        return { alias, address, url: chain.explorerAddressUrl(address) };
-      }),
+      contacts: listContacts(phone).map((c) => ({ ...c, url: chain.explorerAddressUrl(c.address) })),
     });
   });
 
@@ -118,6 +117,21 @@ export function createApi(allowedSenders: Set<string>) {
           url: chain.explorerTxUrl(t.hash),
         })) ?? null,
     });
+  });
+
+  // Agenda propia. Los contactos compartidos (CONTACTS del .env) no se pueden borrar desde acá.
+  api.post("/contacts", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { alias?: string; address?: string };
+    const result = addContact(c.get("phone"), body.alias ?? "", body.address ?? "");
+    if ("error" in result) return c.json({ error: result.error }, 400);
+    return c.json({ ok: true, contact: result.contact });
+  });
+
+  api.delete("/contacts/:alias", (c) => {
+    if (!removeContact(c.get("phone"), c.req.param("alias"))) {
+      return c.json({ error: "Ese contacto no está en tu agenda (o es compartido)." }, 404);
+    }
+    return c.json({ ok: true });
   });
 
   // La web propone; la confirmación llega por WhatsApp con "SI <código>", igual que en el chat.

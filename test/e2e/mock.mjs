@@ -19,13 +19,16 @@ function claudeReply(body) {
   const block = (content, stop_reason) => ({ id: "msg_mock", type: "message", role: "assistant", model: body.model, content, stop_reason, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } });
   if (Array.isArray(last.content) && last.content[0]?.type === "tool_result") {
     const result = JSON.parse(last.content[0].content);
-    const text = result.codigo
+    const text = result.codigo && result.monto
       ? `Para mandarle ${result.monto} a ${result.destino}, respondé SI ${result.codigo} (vence en 2 minutos).`
-      : `Resultado: ${last.content[0].content}`;
+      : result.codigo
+        ? `Para agendar a ${result.nombre}, respondé SI ${result.codigo} (vence en 2 minutos).`
+        : `Resultado: ${last.content[0].content}`;
     return block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "text", text }], "end_turn");
   }
   const user = String(last.content).toLowerCase();
   const tool = (name, input) => block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "tool_use", id: "toolu_1", name, input }], "tool_use");
+  if (user.includes("agenda")) return tool("propose_add_contact", { alias: "pedro", address: "0x4444444444444444444444444444444444444444" });
   if (user.includes("mandale")) return tool("propose_native_transfer", { alias: user.includes("pedro") ? "pedro" : "juan", amountAvax: "0.1" });
   if (user.includes("saldo")) return tool("get_balance", {});
   return block([{ type: "text", text: `Eco: ${last.content}` }], "end_turn");

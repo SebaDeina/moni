@@ -37,8 +37,12 @@
   .addr { display: inline-flex; align-items: center; gap: 8px; font: 14px var(--mono); }
   .copy { font: 500 12px var(--mono); border: 1px solid var(--linea); background: var(--papel); color: var(--tinta); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
 
-  .send form { display: grid; gap: 14px; }
-  .send .row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+  .send form, .add-contact { display: grid; gap: 14px; }
+  .row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+  .add-contact { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--linea); }
+  .add-contact .row2 { grid-template-columns: 1fr 1.6fr; }
+  .remove { font: 500 12px var(--mono); border: 1px solid var(--linea); background: none; color: var(--grafito); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+  .remove:hover { color: var(--alerta); border-color: var(--alerta); }
   .notice { border-radius: 12px; padding: 14px 16px; background: var(--bruma); font-size: 15px; display: grid; gap: 4px; }
   .notice.alerta { background: var(--alerta-suave); color: var(--alerta); }
   .notice b { font-weight: 600; }
@@ -59,7 +63,7 @@
 
   @media (max-width: 860px) {
     .grid { grid-template-columns: 1fr; }
-    .send .row2 { grid-template-columns: 1fr; }
+    .row2, .add-contact .row2 { grid-template-columns: 1fr; }
     header.top .who .phone { display: none; }
   }
 </style>
@@ -142,6 +146,18 @@
         <div class="card">
           <h2>Agenda <span class="label" id="contacts-count"></span></h2>
           <div class="list" id="contacts"></div>
+          <form id="form-contact" class="add-contact">
+            <div class="row2">
+              <label class="field">Nombre
+                <input id="contact-alias" maxlength="30" placeholder="caro" required>
+              </label>
+              <label class="field">Dirección en Avalanche
+                <input id="contact-address" class="mono" placeholder="0x…" spellcheck="false" autocomplete="off" required>
+              </label>
+            </div>
+            <button class="btn ghost" type="submit">Agregar a la agenda</button>
+            <p class="error" id="contact-error" role="alert"></p>
+          </form>
         </div>
       </div>
 

@@ -19,8 +19,8 @@ export type PreparedTransfer =
  */
 export async function prepareTransfer(sender: string, alias: string, amountInput: string): Promise<PreparedTransfer> {
   const amountText = amountInput.trim().replace(",", ".");
-  const contact = findContact(alias);
-  if (!contact) return { error: `No tengo a "${alias}" en la agenda.`, contactos: listAliases() };
+  const contact = findContact(sender, alias);
+  if (!contact) return { error: `No tengo a "${alias}" en la agenda.`, contactos: listAliases(sender) };
   if (!/^\d+(\.\d{1,18})?$/.test(amountText)) return { error: "Monto inválido. Escribilo en AVAX, por ejemplo 0.5." };
   const amountWei = parseEther(amountText);
   if (amountWei <= 0n) return { error: "El monto tiene que ser mayor a cero." };

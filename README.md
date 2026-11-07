@@ -86,6 +86,23 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 
 Un mismo usuario es el mismo número en WhatsApp y en la web: los celulares argentinos se guardan sin el 9 (`src/phone.ts`).
 
+## Agenda
+
+Cada usuario tiene su agenda (tabla `contacts`, por número). Además está la agenda compartida de `CONTACTS` en el `.env`, que ven todos y no se puede borrar desde la app.
+
+- **Web**: en la tarjeta *Agenda* de `/app` se agrega (nombre + dirección 0x) y se borra.
+- **Chat**: "agendá a Caro: 0x…". Moni propone el contacto y se agrega cuando el usuario responde `SI <código>` (vence en 2 minutos, un solo uso), igual que un envío.
+- Solo se puede mandar plata a contactos de la agenda, por su nombre exacto.
+
+## Usuarios
+
+Mientras usemos el sandbox de Kapso, sumar a alguien son dos pasos:
+
+1. En Kapso → WhatsApp → Sandbox → *Sessions* → *Add session*: cargar su número y que mande el código de activación desde su WhatsApp.
+2. En el VPS, agregar su número a `ALLOWED_SENDERS` (sin "+", separado por coma) y reiniciar el contenedor.
+
+Todos los usuarios comparten la wallet de la demo (`WALLET_PRIVATE_KEY`).
+
 ## Agente (Claude)
 
 El agente usa el SDK oficial de Anthropic (`@anthropic-ai/sdk`) con `claude-haiku-5-5`, effort `low` y un loop propio de herramientas (máximo 5 vueltas): para un chat con 4 herramientas alcanza, y es rápido y barato. Con Opus 5.5, Opus 5, Sonnet 5.5 o Fable 5.1 se activa además el fallback del servidor (`fallbacks: "default"`), que reintenta con otro modelo si el pedido se declina por una política de seguridad. Se configura con `ANTHROPIC_API_KEY`, `MONI_CLAUDE_MODEL` y `MONI_CLAUDE_EFFORT`.
