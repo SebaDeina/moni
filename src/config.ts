@@ -27,7 +27,10 @@ const Env = z.object({
   AVALANCHE_DATA_API_KEY: optional,
 });
 
-export const config = Env.parse(process.env);
+// "CLAVE=" en un .env llega como "": la tratamos como no configurada.
+const rawEnv = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ""));
+
+export const config = Env.parse(rawEnv);
 export type Config = typeof config;
 
 /** Fuji C-Chain. Fijo a propósito: el prototipo no toca mainnet. */
