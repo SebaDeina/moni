@@ -52,7 +52,8 @@ function rpc({ id, method, params }) {
     // Tesorería: 1 AVAX. Usuarios: 0,1 AVAX, así mandar 0,1 AVAX obliga a recargar el gas.
     case "eth_getBalance": return ok(String(params[0]).toLowerCase() === TREASURY ? "0xde0b6b3a7640000" : "0x16345785d8a0000");
     case "eth_estimateGas": return ok("0x5208");
-    case "eth_getCode": return ok("0x");
+    // Una smart account queda "desplegada" después de su primera userOp, como en la red.
+    case "eth_getCode": return ok(userOps.some((u) => u.sender.toLowerCase() === String(params[0]).toLowerCase()) ? "0x6080" : "0x");
     // Factory de smart accounts → dirección; balanceOf de USDC → 100 USDC; cualquier otra lectura (getNonce, isContact) → 0 / false.
     case "eth_call": {
       const to = params[0].to?.toLowerCase();

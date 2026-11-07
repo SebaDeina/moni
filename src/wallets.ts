@@ -5,8 +5,10 @@ import {
   NotImplemented,
   explorerAddressUrl,
   explorerTxUrl,
+  deploySmartAccount,
   sendFromTreasury,
   smartAccountAddress,
+  waitForTransfer,
   sweepToSmartAccount,
 } from "./chain/index.js";
 import { config } from "./config.js";
@@ -128,6 +130,8 @@ export async function createWallet(phone: string): Promise<CreatedWallet> {
   if (inserted.changes === 0) return { wallet: toWallet(getRow(phone)!)!, created: false, funding: null };
 
   const funding = await fund(phone, saAddress);
+  // En segundo plano: desplegar la cuenta ya, así desde el primer envío el gas lo patrocina 0xGasless.
+  void deployWallet(phone);
   return { wallet: toWallet(getRow(phone)!)!, created: true, funding };
 }
 
@@ -180,4 +184,26 @@ export async function upgradeWallets(): Promise<void> {
       console.error("[wallets] no pude actualizar la wallet de", phone.slice(-4), String(err).slice(0, 200));
     }
   }
+}
+
+/**
+ * Despliega la smart account del número si todavía no está desplegada (espera antes el saldo de
+ * bienvenida, que paga ese despliegue). No lanza: si falla, el primer envío la despliega igual.
+ */
+export async function deployWallet(phone: string): Promise<void> {
+  try {
+    const row = getRow(phone);
+    if (!row?.sa_address) return;
+    if (row.fund_tx && row.fund_tx.startsWith("0x")) await waitForTransfer(row.fund_tx as `0x${string}`).catch(() => false);
+    const hash = await deploySmartAccount(privateKeyToAccount(decrypt(phone, row)), row.sa_address);
+    if (hash) console.log(`[wallets] smart account ${row.sa_address} desplegada: ${explorerTxUrl(hash)}`);
+  } catch (err) {
+    console.error("[wallets] no pude desplegar la smart account de", phone.slice(-4), String(err).slice(0, 200));
+  }
+}
+
+/** Al arrancar: despliega las smart accounts que todavía no lo están, de a una. */
+export async function deployPendingWallets(): Promise<void> {
+  const rows = db.prepare("SELECT phone FROM wallets WHERE sa_address IS NOT NULL").all() as { phone: string }[];
+  for (const { phone } of rows) await deployWallet(phone);
 }

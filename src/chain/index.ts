@@ -441,6 +441,25 @@ export async function vaultPaymentCalls(from: Address, toInput: `0x${string}`, t
   return calls;
 }
 
+/** La smart account ya está desplegada (tiene código). */
+export async function isDeployed(address: Address): Promise<boolean> {
+  const code = await publicClient.getCode({ address });
+  return Boolean(code && code !== "0x");
+}
+
+/**
+ * Despliega la smart account con una userOp vacía que paga ella misma (la tesorería le recarga el
+ * gas si hace falta). El paymaster de 0xGasless en Fuji rechaza la primera userOp de una cuenta
+ * (AA33: no le alcanza el gas para desplegarla); ya desplegada, patrocina sin problemas.
+ */
+export async function deploySmartAccount(owner: PrivateKeyAccount, address: Address): Promise<Hash | null> {
+  if (await isDeployed(address)) return null;
+  await topUpForUserOp(address, "USDC", 0n); // USDC: solo el gas, sin monto en AVAX
+  const result = await sendUserOp(owner, [{ to: address, value: 0n, data: "0x" }], undefined, { sponsored: false });
+  if (!result.success) throw new Error(`No se pudo desplegar la cuenta: ${result.reason ?? "revirtió"}`);
+  return result.txHash;
+}
+
 /** Gas cubierto por Moni: paymaster de 0xGasless o, si no hay clave, recarga desde la tesorería. */
 const gasCovered = () => canSponsor() || (config.SPONSOR_GAS && treasuryAddress() !== null);
 
@@ -490,7 +509,8 @@ export async function sendViaVault(args: {
   await assertFuji();
   const calls = await vaultPaymentCalls(args.from, args.to, args.token, args.amount, args.memo);
   let result: UserOpResult | null = null;
-  if (canSponsor()) {
+  // Una cuenta sin desplegar no la patrocina el paymaster de Fuji: ese primer envío va por el respaldo (y la despliega).
+  if (canSponsor() && (await isDeployed(args.from))) {
     try {
       result = await sendUserOp(args.owner, calls, args.onSubmitted, { sponsored: true });
     } catch (err) {
