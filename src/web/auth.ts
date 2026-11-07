@@ -95,6 +95,11 @@ export function createWaLogin(): { nonce: string; code: string } {
   return { nonce, code };
 }
 
+/** El código existe, está vigente y nadie lo usó todavía. */
+export function isWaLoginPending(code: string): boolean {
+  return Boolean(db.prepare("SELECT 1 FROM wa_logins WHERE code = ? AND phone IS NULL AND expires_at > ?").get(code, Date.now()));
+}
+
 /** Llegó "Entrar a Moni: <código>" desde WhatsApp: el login queda a nombre de ese número (una sola vez). */
 export function claimWaLogin(phone: string, code: string): boolean {
   const now = Date.now();

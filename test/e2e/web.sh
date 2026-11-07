@@ -13,7 +13,7 @@ MOCK_PID=$!
   KAPSO_PHONE_NUMBER_ID=999 KAPSO_API_BASE=$MOCK ANTHROPIC_API_KEY=claude-key ANTHROPIC_BASE_URL=$MOCK \
   MONI_WALLET_MASTER_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff WALLET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d FUJI_RPC_URL=$MOCK/rpc \
   OXGASLESS_API_KEY=${E2E_OXG_KEY-pm-key} OXGASLESS_BUNDLER_URL=$MOCK/bundler OXGASLESS_PAYMASTER_URL=$MOCK/paymaster DEPOSIT_POLL_MS=300 \
-  ALLOWED_SENDERS=541100000000 MONI_WHATSAPP_NUMBER="+56 9 2040 3095" \
+  ALLOWED_SENDERS=541100000000,541100000001 MONI_WHATSAPP_NUMBER="+56 9 2040 3095" \
   CONTACTS="juan=0x1111111111111111111111111111111111111111,caro=0x2222222222222222222222222222222222222222" \
   npx tsx src/index.ts > "${TMPDIR:-/tmp}/moni-web-app.log" 2>&1 ) &
 APP_PID=$!
@@ -69,8 +69,8 @@ echo "15. Salir → $(j -X POST $APP/api/auth/logout)   /api/me después → $(c
 # Login al revés: la web abre WhatsApp con "Entrar a Moni: <código>" y entra cuando llega el mensaje.
 JAR2="${JAR}-wa"
 w() { curl -s -b "$JAR2" -c "$JAR2" "$@"; }
-wa_msg() { # $1 id, $2 texto
-  local body="{\"message\":{\"id\":\"$1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"$2\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
+wa_msg() { # $1 id, $2 texto, $3 número (opcional)
+  local body="{\"message\":{\"id\":\"$1\",\"type\":\"text\",\"from\":\"${3:-5491100000000}\",\"text\":{\"body\":\"$2\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
   local sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')
   curl -s -o /dev/null -w '%{http_code}' -X POST $APP/webhooks/kapso -H 'content-type: application/json' -H 'x-webhook-event: whatsapp.message.received' -H "x-webhook-signature: $sig" --data-binary "$body"
 }
@@ -84,5 +84,10 @@ echo "20. Mando 'Entrar a Moni: $WACODE' → $(wa_msg wlogin1 "Entrar a Moni: $W
 echo "21. La web consulta → $(w $APP/api/auth/whatsapp)   /api/me → $(w -o /dev/null -w '%{http_code}' $APP/api/me)"
 echo "22. Consulta otra vez (ya consumido) → $(w $APP/api/auth/whatsapp)"
 echo "23. Reuso el código → $(wa_msg wlogin2 "entrar a moni $WACODE")"; sleep 1; echo "    WhatsApp: $(last_wa)"
+rm -f "$JAR2"
+GO=$(w -o /dev/null -w '%{redirect_url}' $APP/api/auth/whatsapp/go); WACODE=$(printf '%s' "$GO" | grep -o '[0-9]\{6\}$')
+echo "24. Primer login de un número sin wallet → $(wa_msg wlogin3 "Entrar a Moni: $WACODE" 5491100000001)"; sleep 1.5
+echo "    WhatsApp:"; curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d).sent.filter(m=>m.type&&m.to==="5491100000001").at(-1);console.log(m?.text?.body.replace(/^/gm,"      "))})'
+echo "25. La web entra con wallet → $(w $APP/api/auth/whatsapp)   wallet: $(w $APP/api/me | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d);console.log(m.wallet?.address,"| saldo:",JSON.stringify(m.balances))})')"
 rm -f "$JAR2"
 echo "--- errores en el log"; grep -iE "error|warn" "${TMPDIR:-/tmp}/moni-web-app.log" | grep -v ExperimentalWarning | head -5

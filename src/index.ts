@@ -9,7 +9,8 @@ import { startDepositWatcher } from "./deposits.js";
 import { canonicalPhone } from "./phone.js";
 import { deployPendingWallets, upgradeWallets } from "./wallets.js";
 import { createApi } from "./web/api.js";
-import { claimWaLogin, parseWaLoginMessage } from "./web/auth.js";
+import { parseWaLoginMessage } from "./web/auth.js";
+import { replyToWaLogin } from "./web/welcome.js";
 import { askConfirmation, whatsapp, type IncomingMessage } from "./whatsapp/index.js";
 
 const app = new Hono();
@@ -46,13 +47,7 @@ async function onMessage(msg: IncomingMessage) {
   // "Entrar a Moni: <código>": el mensaje que arma la web para entrar sin tipear el número.
   const loginCode = msg.kind === "text" ? parseWaLoginMessage(msg.text) : null;
   if (loginCode) {
-    const ok = claimWaLogin(user, loginCode);
-    await whatsapp.sendText(
-      msg.from,
-      ok
-        ? `Listo, ya entraste a Moni en la web ✅ Volvé al navegador o abrí ${config.PUBLIC_URL}/app\n\nOjo: nunca mandes un código de Moni que te haya pasado otra persona.`
-        : `Ese código no sirve o ya venció. Pedí uno nuevo en ${config.PUBLIC_URL}/app`,
-    );
+    await whatsapp.sendText(msg.from, await replyToWaLogin(user, loginCode));
     return;
   }
 
