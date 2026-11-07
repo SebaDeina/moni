@@ -122,7 +122,7 @@
         <div><b>Moni</b><div class="fine">en línea</div></div>
       </div>
       <div class="bubble me">¿cuánto tengo?</div>
-      <div class="bubble moni">Tenés <span class="mono">4,82 AVAX</span>. Esta semana mandaste <span class="mono">1,5</span> y pagaste <span class="mono">0,0004</span> de gas.</div>
+      <div class="bubble moni">Tenés <span class="mono">4,82 AVAX</span>. Esta semana mandaste <span class="mono">1,5</span> y el gas lo pagó Moni.</div>
       <div class="bubble me audio"><span class="wave" aria-hidden="true"><i style="height:6px"></i><i style="height:14px"></i><i style="height:9px"></i><i style="height:17px"></i><i style="height:11px"></i><i style="height:15px"></i><i style="height:7px"></i><i style="height:12px"></i></span><span class="mono">0:04</span></div>
       <div class="bubble moni">Le mando <span class="mono">0,5 AVAX</span> a caro. Respondé <span class="mono">SI 482913</span> para confirmar (vence en 2 min).</div>
       <div class="bubble me mono">SI 482913</div>
@@ -147,7 +147,7 @@
       <div class="step">
         <span class="n">02</span>
         <h3>Moni te muestra el número primero</h3>
-        <p>Saldo, movimientos y gas, con el link de cada transacción. Si le pedís un envío, te dice cuánto y a quién antes de hacer nada.</p>
+        <p>Saldo y movimientos, con el link de cada transacción. Si le pedís un envío, te dice cuánto y a quién antes de hacer nada.</p>
         <p class="say">“Le mando 0,5 AVAX a caro. ¿Confirmás?”</p>
       </div>
       <div class="step">
@@ -170,7 +170,7 @@
       </div>
       <ul>
         <li><b>&lt; 1 s</b><p><strong>Finalidad casi instantánea</strong>La transacción queda firme antes de que Moni termine de escribir la respuesta.</p></li>
-        <li><b>centavos</b><p><strong>Comisiones bajas</strong>Mandar poco tiene sentido: el gas no se come el envío.</p></li>
+        <li><b>0 gas</b><p><strong>Sin comprar AVAX para el gas</strong>Tu wallet es una smart account y el gas lo paga Moni con 0xGasless: mandás exactamente lo que elegiste.</p></li>
         <li><b>EVM</b><p><strong>C-Chain compatible con Ethereum</strong>Contrato verificado y wallets estándar: todo se puede auditar en el explorador.</p></li>
       </ul>
     </div>
@@ -193,9 +193,9 @@
     </div>
     <div class="rules">
       <div class="card rule"><h3>Código de un solo uso</h3><p>Cada envío pide un código de 6 dígitos, atado a tu número y a esa operación. Vence a los 2 minutos y no se puede reusar.</p></div>
-      <div class="card rule"><h3>El modelo nunca firma</h3><p>La IA solo propone. La firma la hace el backend, después de tu confirmación, y guarda el hash antes de transmitir para no mandar dos veces.</p></div>
+      <div class="card rule"><h3>El modelo nunca firma</h3><p>La IA solo propone. La firma la hace el backend, después de tu confirmación, y el pago pasa por el contrato MoniVault, que aplica la agenda y el tope semanal on-chain.</p></div>
       <div class="card rule"><h3>Agenda cerrada</h3><p>Solo se puede mandar a contactos guardados, por su nombre exacto. Si hay dos “Caro”, Moni pregunta.</p></div>
-      <div class="card rule"><h3>Topes por envío</h3><p>Hay un máximo por transferencia, y se chequea el saldo más el gas antes de proponer.</p></div>
+      <div class="card rule"><h3>Topes por envío</h3><p>Hay un máximo por transferencia, y se chequea el saldo antes de proponer.</p></div>
     </div>
   </div>
 </section>

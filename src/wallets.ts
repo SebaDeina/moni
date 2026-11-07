@@ -1,18 +1,46 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { parseEther, type Address } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { NotImplemented, explorerAddressUrl, explorerTxUrl, sendNativeTransfer, treasury } from "./chain/index.js";
+import {
+  NotImplemented,
+  explorerAddressUrl,
+  explorerTxUrl,
+  sendNativeTransfer,
+  smartAccountAddress,
+  sweepNative,
+  treasury,
+} from "./chain/index.js";
 import { config } from "./config.js";
 import { db } from "./db/index.js";
 
 /**
- * Una wallet por número de WhatsApp, custodiada por Moni: la clave privada se genera acá y se
- * guarda cifrada con AES-256-GCM. El número va como dato autenticado, así una clave cifrada
- * no se puede copiar a la fila de otro usuario.
+ * Una wallet por número de WhatsApp, custodiada por Moni.
+ *
+ * - La clave privada se genera acá y se guarda cifrada con AES-256-GCM. El número va como dato
+ *   autenticado, así una clave cifrada no se puede copiar a la fila de otro usuario.
+ * - Esa clave es la dueña (EOA) de una smart account de 0xGasless. La smart account es la
+ *   dirección del usuario: ahí está su saldo, y opera sin pagar gas (lo paga el paymaster).
  */
-export type UserWallet = { address: Address; url: string; fundTx: string | null; createdAt: number };
+export type UserWallet = {
+  /** Smart account: la dirección para recibir, consultar y enviar. */
+  address: Address;
+  /** Dueño de la smart account (firma las userOps). No guarda saldo. */
+  owner: Address;
+  url: string;
+  fundTx: string | null;
+  createdAt: number;
+};
 
-type Row = { address: Address; enc_key: string; iv: string; tag: string; fund_tx: string | null; created_at: number };
+type Row = {
+  address: Address;
+  sa_address: Address | null;
+  enc_key: string;
+  iv: string;
+  tag: string;
+  fund_tx: string | null;
+  sweep_tx: string | null;
+  created_at: number;
+};
 
 function masterKey(): Buffer {
   if (!config.MONI_WALLET_MASTER_KEY) throw new NotImplemented("MONI_WALLET_MASTER_KEY");
@@ -36,21 +64,28 @@ function decrypt(phone: string, row: Row): `0x${string}` {
 }
 
 const getRow = (phone: string) =>
-  db.prepare("SELECT address, enc_key, iv, tag, fund_tx, created_at FROM wallets WHERE phone = ?").get(phone) as Row | undefined;
+  db
+    .prepare("SELECT address, sa_address, enc_key, iv, tag, fund_tx, sweep_tx, created_at FROM wallets WHERE phone = ?")
+    .get(phone) as Row | undefined;
 
-const toWallet = (row: Row): UserWallet => ({
-  address: row.address,
-  url: explorerAddressUrl(row.address),
-  fundTx: row.fund_tx,
-  createdAt: row.created_at,
-});
+/** Solo las wallets que ya tienen smart account cuentan: sin ella, el usuario no puede operar sin gas. */
+const toWallet = (row: Row): UserWallet | null =>
+  row.sa_address
+    ? {
+        address: row.sa_address,
+        owner: row.address,
+        url: explorerAddressUrl(row.sa_address),
+        fundTx: row.fund_tx,
+        createdAt: row.created_at,
+      }
+    : null;
 
 export function getWallet(phone: string): UserWallet | null {
   const row = getRow(phone);
   return row ? toWallet(row) : null;
 }
 
-/** La cuenta con la que firma el usuario. Solo para operaciones ya confirmadas. */
+/** La cuenta dueña de la smart account del usuario. Solo para operaciones ya confirmadas. */
 export function signerFor(phone: string): PrivateKeyAccount {
   const row = getRow(phone);
   if (!row) throw new NoWallet();
@@ -67,25 +102,33 @@ export class NoWallet extends Error {
 export type CreatedWallet = {
   wallet: UserWallet;
   created: boolean;
-  /** Fondeo inicial desde la tesorería: hash, o el motivo por el que no salió. */
+  /** Saldo de bienvenida desde la tesorería: hash, o el motivo por el que no salió. */
   funding: { amount: string; txUrl: string } | { error: string } | null;
 };
 
-/** Crea la wallet del número (una sola) y le manda el saldo de bienvenida para el gas. */
+/** Crea la wallet del número (una sola) y le manda el saldo de bienvenida a su smart account. */
 export async function createWallet(phone: string): Promise<CreatedWallet> {
   const existing = getRow(phone);
-  if (existing) return { wallet: toWallet(existing), created: false, funding: null };
+  if (existing) {
+    const wallet = toWallet(existing) ?? (await upgradeWallet(phone, existing));
+    return { wallet, created: false, funding: null };
+  }
 
   const privateKey = generatePrivateKey();
-  const address = privateKeyToAccount(privateKey).address;
+  const owner = privateKeyToAccount(privateKey);
+  // Antes de guardar: si no podemos calcular la smart account, no dejamos una wallet a medias.
+  const saAddress = await smartAccountAddress(owner);
   const inserted = db
-    .prepare("INSERT OR IGNORE INTO wallets (phone, address, enc_key, iv, tag, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(phone, address, ...Object.values(encrypt(phone, privateKey)), Date.now());
+    .prepare(
+      // sweep_tx 'none': una wallet nueva nunca tuvo saldo en la EOA, no hay nada que mover.
+      "INSERT OR IGNORE INTO wallets (phone, address, sa_address, enc_key, iv, tag, sweep_tx, created_at) VALUES (?, ?, ?, ?, ?, ?, 'none', ?)",
+    )
+    .run(phone, owner.address, saAddress, ...Object.values(encrypt(phone, privateKey)), Date.now());
   // Si dos pedidos llegaron juntos, gana el primero y el segundo ve esa wallet.
-  if (inserted.changes === 0) return { wallet: toWallet(getRow(phone)!), created: false, funding: null };
+  if (inserted.changes === 0) return { wallet: toWallet(getRow(phone)!)!, created: false, funding: null };
 
-  const funding = await fund(phone, address);
-  return { wallet: toWallet(getRow(phone)!), created: true, funding };
+  const funding = await fund(phone, saAddress);
+  return { wallet: toWallet(getRow(phone)!)!, created: true, funding };
 }
 
 async function fund(phone: string, address: Address): Promise<CreatedWallet["funding"]> {
@@ -107,5 +150,37 @@ async function fund(phone: string, address: Address): Promise<CreatedWallet["fun
           ? "La tesorería todavía no está configurada, así que la wallet arranca en 0."
           : "No pude mandarle el saldo inicial; la wallet arranca en 0.",
     };
+  }
+}
+
+/**
+ * Wallet creada antes de 0xGasless: le calcula la smart account y le pasa lo que tenía la EOA.
+ * El barrido es de una sola vez y lo paga la propia EOA con su saldo.
+ */
+async function upgradeWallet(phone: string, row: Row): Promise<UserWallet> {
+  const owner = privateKeyToAccount(decrypt(phone, row));
+  const saAddress = row.sa_address ?? (await smartAccountAddress(owner));
+  db.prepare("UPDATE wallets SET sa_address = ? WHERE phone = ? AND sa_address IS NULL").run(saAddress, phone);
+  if (!row.sweep_tx) {
+    try {
+      const hash = await sweepNative(owner, saAddress);
+      db.prepare("UPDATE wallets SET sweep_tx = ? WHERE phone = ?").run(hash ?? "none", phone);
+      if (hash) console.log(`[wallets] saldo de ${owner.address} pasado a la smart account ${saAddress}: ${explorerTxUrl(hash)}`);
+    } catch (err) {
+      console.error("[wallets] no pude pasar el saldo a la smart account", owner.address, String(err).slice(0, 200));
+    }
+  }
+  return toWallet(getRow(phone)!)!;
+}
+
+/** Al arrancar: pasa a smart account las wallets que todavía no tienen. */
+export async function upgradeWallets(): Promise<void> {
+  const pending = db.prepare("SELECT phone FROM wallets WHERE sa_address IS NULL OR sweep_tx IS NULL").all() as { phone: string }[];
+  for (const { phone } of pending) {
+    try {
+      await upgradeWallet(phone, getRow(phone)!);
+    } catch (err) {
+      console.error("[wallets] no pude actualizar la wallet de", phone.slice(-4), String(err).slice(0, 200));
+    }
   }
 }

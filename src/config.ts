@@ -41,8 +41,12 @@ const Env = z.object({
   WALLET_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(),
   /** Clave (32 bytes en hex) con la que se cifran las claves privadas de las wallets de los usuarios. */
   MONI_WALLET_MASTER_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
-  /** AVAX que la tesorería le manda a cada wallet nueva para el gas. */
+  /** AVAX de bienvenida que la tesorería le manda a cada wallet nueva (el gas lo paga 0xGasless). */
   WELCOME_AVAX: z.string().regex(/^\d+(\.\d{1,18})?$/).default("0.05"),
+  /** 0xGasless: smart account por usuario con gas patrocinado. Sin clave, Moni no puede enviar. */
+  OXGASLESS_API_KEY: optional,
+  OXGASLESS_BUNDLER_URL: z.string().url().default("https://bundler.0xgasless.com/43113"),
+  OXGASLESS_PAYMASTER_URL: z.string().url().default("https://paymaster.0xgasless.com/v1/43113/rpc"),
   AVALANCHE_DATA_API_KEY: optional,
   /** Contrato MoniVault desplegado en Fuji (contracts/). */
   MONI_VAULT_ADDRESS: z

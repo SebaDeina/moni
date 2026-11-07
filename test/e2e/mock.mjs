@@ -1,4 +1,5 @@
 // Servidor falso: Kapso (envío + media), Claude (Messages API) y STT de xAI.
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 
 const sent = [];
@@ -14,6 +15,13 @@ function readBody(req) {
 
 const claudeRequests = [];
 const rawTxs = [];
+const userOps = [];
+const sponsored = [];
+
+const FACTORY = "0xf0b3f5146c2725e36d78f5029bc560edfc67ade0";
+const word = (hex) => hex.replace(/^0x/, "").padStart(64, "0");
+// Dirección contrafactual falsa pero fija por dueño: hash de los datos del llamado al factory.
+const fakeAccount = (data) => "0x" + createHash("sha256").update(data).digest("hex").slice(0, 40);
 
 // Nodo de Fuji falso: lo justo para saldo, estimación de gas y envío de transacciones firmadas.
 function rpc({ id, method, params }) {
@@ -32,7 +40,29 @@ function rpc({ id, method, params }) {
         nonce: "0x0000000000000000", difficulty: "0x0", extraData: "0x", logsBloom: "0x" + "00".repeat(256), sha3Uncles: "0x" + "33".repeat(32),
         size: "0x0", stateRoot: "0x" + "44".repeat(32), receiptsRoot: "0x" + "55".repeat(32), transactionsRoot: "0x" + "66".repeat(32), uncles: [] });
     case "eth_sendRawTransaction": rawTxs.push(params[0]); return ok("0x" + "ab".repeat(32));
+    case "eth_getCode": return ok("0x");
+    // Factory de smart accounts → dirección; cualquier otra lectura (getNonce, isContact) → 0 / false.
+    case "eth_call": return ok("0x" + word(params[0].to?.toLowerCase() === FACTORY ? fakeAccount(params[0].data) : "0"));
     default: return { jsonrpc: "2.0", id, error: { code: -32601, message: "mock: " + method } };
+  }
+}
+
+// Bundler y paymaster de 0xGasless falsos (ERC-4337, EntryPoint v0.6).
+function bundler({ id, method, params }) {
+  const ok = (result) => ({ jsonrpc: "2.0", id, result });
+  switch (method) {
+    case "skandha_getGasPrice": return ok({ maxPriorityFeePerGas: "0x59682f00", maxFeePerGas: "0x59682f14" });
+    case "eth_estimateUserOperationGas": return ok({ preVerificationGas: "0xc350", verificationGasLimit: "0x61a80", callGasLimit: "0x30d40" });
+    case "eth_sendUserOperation": {
+      userOps.push({ sender: params[0].sender, callData: params[0].callData, paymasterAndData: params[0].paymasterAndData });
+      return ok("0x" + word((userOps.length).toString(16)).replace(/^0{2}/, "ee"));
+    }
+    case "eth_getUserOperationReceipt":
+      return ok({ userOpHash: params[0], entryPoint: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789", paymaster: "0x" + "99".repeat(20), actualGasCost: "0x0", actualGasUsed: "0x0", success: "true", reason: "", logs: [], receipt: { transactionHash: "0x" + "cd".repeat(32), blockNumber: 16 } });
+    case "skandha_userOperationStatus":
+    case "eth_getUserOperationStatus":
+      return ok({ state: "CONFIRMED", transactionHash: "0x" + "cd".repeat(32) });
+    default: return { jsonrpc: "2.0", id, error: { code: -32601, message: "mock bundler: " + method } };
   }
 }
 
@@ -63,7 +93,15 @@ createServer(async (req, res) => {
   const body = await readBody(req);
   const json = (code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
 
-  if (req.url === "/_sent") return json(200, { sent, sttCalls, claudeRequests, rawTxs: rawTxs.length });
+  if (req.url === "/_sent") return json(200, { sent, sttCalls, claudeRequests, rawTxs: rawTxs.length, userOps, sponsored: sponsored.length });
+  if (req.method === "POST" && req.url === "/bundler") return json(200, bundler(JSON.parse(body.toString())));
+  if (req.method === "POST" && req.url.startsWith("/paymaster/")) {
+    const { id, method } = JSON.parse(body.toString());
+    if (req.url !== "/paymaster/pm-key") return json(500, { jsonrpc: "2.0", id, error: { code: -32603, message: "Internal error" } });
+    if (method !== "pm_sponsorUserOperation") return json(200, { jsonrpc: "2.0", id, error: { code: -32601, message: "Method not found" } });
+    sponsored.push(id);
+    return json(200, { jsonrpc: "2.0", id, result: { paymasterAndData: "0x" + "99".repeat(20) + "00".repeat(32), preVerificationGas: "0xc350", verificationGasLimit: "0x61a80", callGasLimit: "0x30d40" } });
+  }
   if (req.method === "POST" && req.url === "/rpc") {
     const parsed = JSON.parse(body.toString());
     return json(200, Array.isArray(parsed) ? parsed.map(rpc) : rpc(parsed));

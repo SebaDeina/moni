@@ -11,6 +11,7 @@ MOCK_PID=$!
 ( cd "$REPO" && PORT=3917 DATABASE_PATH="${TMPDIR:-/tmp}/moni-e2e.db" KAPSO_WEBHOOK_SECRET=$SECRET KAPSO_API_KEY=test-key \
   KAPSO_PHONE_NUMBER_ID=999 KAPSO_API_BASE=$MOCK ANTHROPIC_API_KEY=claude-key ANTHROPIC_BASE_URL=$MOCK \
   MONI_WALLET_MASTER_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff WALLET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d FUJI_RPC_URL=$MOCK/rpc \
+  OXGASLESS_API_KEY=pm-key OXGASLESS_BUNDLER_URL=$MOCK/bundler OXGASLESS_PAYMASTER_URL=$MOCK/paymaster \
   TRANSCRIBE_API_KEY=stt-key TRANSCRIBE_URL=$MOCK/v1/stt CONTACTS="juan=0x1111111111111111111111111111111111111111,maría=0x2222222222222222222222222222222222222222" \
   npx tsx src/index.ts > "${TMPDIR:-/tmp}/moni-e2e-app.log" 2>&1 ) &
 APP_PID=$!
@@ -51,7 +52,7 @@ CCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
 echo "15. Confirmo el contacto con SI $CCODE → $(post "$(text_msg w16 "SI $CCODE")")"; last_sent
 echo "16. Reuso el código del contacto → $(post "$(text_msg w17 "SI $CCODE")")"; last_sent
 echo "17. Ahora 'mandale a pedro' → $(post "$(text_msg w18 'mandale 0.1 a pedro')")"; last_sent
-echo "    transacciones firmadas en el nodo falso: $(curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).rawTxs))') (fondeo + envíos confirmados)"
+echo "    nodo falso: $(curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d);console.log(m.rawTxs+" tx firmadas por la tesorería (fondeo) | "+m.userOps.length+" userOps al bundler, "+m.sponsored+" patrocinadas | remitente: "+[...new Set(m.userOps.map(u=>u.sender))].join(","))})')"
 echo "--- requests a Claude (modelo, beta, fallbacks, effort, roles)"
 curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const r=JSON.parse(d).claudeRequests;console.log(r.length+" requests; primera:",JSON.stringify(r[0]));console.log("con historial:",JSON.stringify(r.at(-1).roles))})'
 echo "--- operaciones en la base"

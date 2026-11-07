@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { formatEther, parseEther } from "viem";
-import { NotImplemented, canAfford, explorerTxUrl, sendNativeTransfer } from "./chain/index.js";
+import { NotImplemented, canAfford, explorerTxUrl, payViaVault } from "./chain/index.js";
 import { FUJI_CHAIN_ID } from "./config.js";
 import { createConfirmation } from "./confirmations.js";
 import { findContact, listAliases, type Contact } from "./contacts.js";
@@ -29,7 +29,7 @@ export async function prepareTransfer(sender: string, alias: string, amountInput
   if (amountWei <= 0n) return { error: "El monto tiene que ser mayor a cero." };
   if (amountWei > MAX_TRANSFER_WEI) return { error: `El máximo por transferencia es ${formatEther(MAX_TRANSFER_WEI)} AVAX.` };
   try {
-    if (!(await canAfford(wallet.address, amountWei, contact.address))) return { error: "No alcanza el saldo para ese monto más el gas." };
+    if (!(await canAfford(wallet.address, amountWei))) return { error: "No alcanza el saldo para ese monto." };
   } catch (err) {
     if (!(err instanceof NotImplemented)) throw err;
   }
@@ -88,24 +88,31 @@ export async function executeConfirmedOperation(sender: string, operationId: str
   if (!op) return "Esa operación ya no está pendiente.";
 
   const amount = BigInt(op.amount_wei);
-  const setStatus = (status: string, fields: { tx_hash?: string; nonce?: number; error?: string } = {}) =>
+  const setStatus = (status: string, fields: { tx_hash?: string; user_op_hash?: string; error?: string } = {}) =>
     db
-      .prepare("UPDATE operations SET status = ?, tx_hash = COALESCE(?, tx_hash), nonce = COALESCE(?, nonce), error = ? WHERE id = ?")
-      .run(status, fields.tx_hash ?? null, fields.nonce ?? null, fields.error ?? null, op.id);
+      .prepare(
+        "UPDATE operations SET status = ?, tx_hash = COALESCE(?, tx_hash), user_op_hash = COALESCE(?, user_op_hash), error = ? WHERE id = ?",
+      )
+      .run(status, fields.tx_hash ?? null, fields.user_op_hash ?? null, fields.error ?? null, op.id);
 
-  let preparedHash: string | undefined;
+  const wallet = getWallet(sender);
+  let submitted = false;
   try {
-    const hash = await sendNativeTransfer({
-      account: signerFor(sender),
+    if (!wallet) throw new NoWallet();
+    // Una sola userOp con gas patrocinado por 0xGasless: depósito en MoniVault + pago al contacto.
+    const { txHash } = await payViaVault({
+      owner: signerFor(sender),
+      from: wallet.address,
       to: op.to_address,
       amountWei: amount,
-      onPrepared: ({ nonce, hash }) => {
-        preparedHash = hash;
-        setStatus("confirmed", { nonce, tx_hash: hash });
+      memo: "Moni",
+      onSubmitted: (userOpHash) => {
+        submitted = true;
+        setStatus("confirmed", { user_op_hash: userOpHash });
       },
     });
-    setStatus("sent", { tx_hash: hash });
-    return `Listo ✅ Le mandé ${formatEther(amount)} AVAX a ${op.to_alias}.\n${explorerTxUrl(hash)}`;
+    setStatus("sent", { tx_hash: txHash });
+    return `Listo ✅ Le mandé ${formatEther(amount)} AVAX a ${op.to_alias}. El gas lo pagó Moni.\n${explorerTxUrl(txHash)}`;
   } catch (err) {
     setStatus("failed", { error: err instanceof Error ? err.message : String(err) });
     if (err instanceof NoWallet) return err.message;
@@ -113,9 +120,9 @@ export async function executeConfirmedOperation(sender: string, operationId: str
       return "Confirmado, pero las transferencias todavía no están habilitadas en Moni. No se movió plata.";
     }
     console.error("[operaciones] falló el envío", op.id, err);
-    // Si ya se firmó, la transacción puede haber salido igual: no prometemos que no se movió plata.
-    if (preparedHash) {
-      return `Hubo un problema al confirmar el envío. Revisá si salió antes de intentar de nuevo:\n${explorerTxUrl(preparedHash)}`;
+    // Si el bundler ya la aceptó, puede entrar igual: no prometemos que no se movió plata.
+    if (submitted && wallet) {
+      return `Hubo un problema al confirmar el envío. Revisá si salió antes de intentar de nuevo:\n${wallet.url}`;
     }
     return "No pude enviar la transferencia. No se movió plata; probá de nuevo en un rato.";
   }

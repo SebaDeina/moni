@@ -95,6 +95,19 @@ db.exec(`
   );
 `);
 
+// Columnas agregadas después de crear las tablas (las bases existentes no las tienen).
+function addColumn(table: string, column: string, type: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+}
+// Smart account (0xGasless) de cada wallet: es la dirección del usuario. `address` queda como su dueño (EOA).
+addColumn("wallets", "sa_address", "TEXT");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS wallets_sa_address ON wallets (sa_address)");
+// Barrido único del saldo que tenía la EOA hacia la smart account.
+addColumn("wallets", "sweep_tx", "TEXT");
+// Hash de la userOp, conocido antes de que entre en un bloque.
+addColumn("operations", "user_op_hash", "TEXT");
+
 /** Guarda el mensaje. Devuelve false si ya lo habíamos recibido (webhook repetido). */
 export function saveIncomingMessage(m: {
   id: string;

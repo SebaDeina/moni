@@ -8,7 +8,7 @@ export const tools: Anthropic.Beta.BetaTool[] = [
   {
     name: "create_wallet",
     description:
-      "Crea la wallet del usuario en Avalanche Fuji (una por número) y le manda un saldo inicial para el gas. Si ya tiene, devuelve la que tiene.",
+      "Crea la wallet del usuario en Avalanche Fuji (una por número, una smart account sin gas) y le manda un saldo de bienvenida. Si ya tiene, devuelve la que tiene.",
     strict: true,
     input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
   },
@@ -38,7 +38,7 @@ export const tools: Anthropic.Beta.BetaTool[] = [
   {
     name: "weekly_outflow",
     description:
-      "Cuánto salió desde el lunes (hora de Buenos Aires): valor enviado en transacciones exitosas y gas pagado, por separado.",
+      "Cuánto salió desde el lunes (hora de Buenos Aires): valor enviado en transacciones exitosas y gas pagado por el usuario (con Moni es 0: lo paga 0xGasless).",
     strict: true,
     input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
   },

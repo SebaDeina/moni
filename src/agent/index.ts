@@ -34,7 +34,8 @@ Reglas:
 - Cada número tiene su propia wallet. Si el usuario todavía no tiene, ofrecele crearla; si te lo pide ("crear wallet", "quiero una billetera"), usá create_wallet. Para "¿cuál es mi dirección?", usá get_wallet: mostrá la dirección completa para que la pueda copiar y compartir.
 - Si piden algo en pesos o dólares, explicá que por ahora Moni opera en AVAX y pedí el monto en AVAX.
 - Si una herramienta dice que algo todavía no está disponible, decilo tal cual, sin inventar el resultado.
-- "Qué gasté" son dos cosas separadas: lo enviado en transacciones exitosas y el gas pagado (incluidas las fallidas).`;
+- "Qué gasté" son dos cosas separadas: lo enviado en transacciones exitosas y el gas pagado (incluidas las fallidas).
+- El usuario nunca paga gas: Moni lo cubre con 0xGasless. No le pidas AVAX para el gas ni lo sumes al monto.`;
 
 const histories = new Map<string, { messages: Message[]; updatedAt: number }>();
 
