@@ -76,6 +76,13 @@ export async function smartAccountAddress(owner: PrivateKeyAccount): Promise<Add
   return (await smartAccount(owner)).getAccountAddress();
 }
 
+/** El paymaster no patrocinó la userOp y el bundler no la aceptó: no salió nada, se puede reintentar sin paymaster. */
+export class SponsorshipRejected extends Error {
+  constructor(reason: string) {
+    super(`0xGasless no patrocinó la operación: ${reason}`);
+  }
+}
+
 export type UserOpResult = { userOpHash: Hex; txHash: Hex; success: boolean; reason?: string; sponsored: boolean };
 
 /**
@@ -87,11 +94,22 @@ export async function sendUserOp(
   owner: PrivateKeyAccount,
   calls: Call[],
   onSubmitted?: (userOpHash: Hex) => void,
+  { sponsored = canSponsor() }: { sponsored?: boolean } = {},
 ): Promise<UserOpResult> {
-  const sponsored = canSponsor();
   const account = await smartAccount(owner);
-  const res = await account.sendTransaction(calls, sponsored ? { paymasterServiceData: { mode: PaymasterMode.SPONSORED } } : undefined);
-  if (res.error || !res.userOpHash) throw new Error(`0xGasless rechazó la operación: ${res.error?.message ?? "sin hash"}`);
+  let res: Awaited<ReturnType<typeof account.sendTransaction>>;
+  try {
+    res = await account.sendTransaction(calls, sponsored ? { paymasterServiceData: { mode: PaymasterMode.SPONSORED } } : undefined);
+  } catch (err) {
+    // Antes de que el bundler la acepte no salió nada: con paymaster, el que llama puede reintentar sin él.
+    if (sponsored) throw new SponsorshipRejected(String((err as Error)?.message ?? err).slice(0, 200));
+    throw err;
+  }
+  if (res.error || !res.userOpHash) {
+    const reason = res.error?.message ?? "sin hash";
+    if (sponsored) throw new SponsorshipRejected(reason);
+    throw new Error(`0xGasless rechazó la operación: ${reason}`);
+  }
   const userOpHash = res.userOpHash as Hex;
   onSubmitted?.(userOpHash);
 

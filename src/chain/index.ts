@@ -30,7 +30,7 @@ import { avalancheFuji } from "viem/chains";
 import { z } from "zod";
 import { config, FUJI_CHAIN_ID } from "../config.js";
 import { NotImplemented } from "./errors.js";
-import { canSponsor, sendUserOp, type Call, type UserOpResult } from "./gasless.js";
+import { SponsorshipRejected, canSponsor, sendUserOp, type Call, type UserOpResult } from "./gasless.js";
 
 export { NotImplemented };
 export { canSponsor, smartAccountAddress } from "./gasless.js";
@@ -448,7 +448,7 @@ const gasCovered = () => canSponsor() || (config.SPONSOR_GAS && treasuryAddress(
 export async function canSend(from: Address, token: Token, amount: bigint): Promise<{ ok: boolean; reason?: "saldo" | "gas" }> {
   if (amount <= 0n) return { ok: false, reason: "saldo" };
   if ((await getTokenBalance(from, token)) < amount) return { ok: false, reason: "saldo" };
-  if (canSponsor()) return { ok: true };
+  if (canSponsor() && !(config.SPONSOR_GAS && treasuryAddress() !== null)) return { ok: true };
   if (!gasCovered()) {
     // Sin paymaster ni recarga: la smart account paga su gas con su propio AVAX.
     const need = USEROP_GAS_RESERVE + (TOKENS[token].address ? 0n : amount);
@@ -459,7 +459,7 @@ export async function canSend(from: Address, token: Token, amount: bigint): Prom
 
 /** Sin paymaster: la tesorería le deja a la smart account el AVAX para su gas (y espera la confirmación). */
 async function topUpForUserOp(from: Address, token: Token, amount: bigint): Promise<void> {
-  if (canSponsor() || !gasCovered()) return;
+  if (!config.SPONSOR_GAS || treasuryAddress() === null) return;
   const need = USEROP_GAS_RESERVE + (TOKENS[token].address ? 0n : amount);
   const balance = await getBalance(from);
   if (balance >= need) return;
@@ -485,9 +485,21 @@ export async function sendViaVault(args: {
   if (!isAddress(args.to)) throw new Error(`Dirección inválida: ${args.to}`);
   if (args.amount <= 0n) throw new Error("El monto tiene que ser mayor a cero");
   await assertFuji();
-  await topUpForUserOp(args.from, args.token, args.amount);
   const calls = await vaultPaymentCalls(args.from, args.to, args.token, args.amount, args.memo);
-  const result = await sendUserOp(args.owner, calls, args.onSubmitted);
+  let result: UserOpResult | null = null;
+  if (canSponsor()) {
+    try {
+      result = await sendUserOp(args.owner, calls, args.onSubmitted, { sponsored: true });
+    } catch (err) {
+      // Si 0xGasless no la patrocina, no salió nada: la mandamos con la tesorería pagando el gas.
+      if (!(err instanceof SponsorshipRejected)) throw err;
+      console.warn("[chain] paymaster rechazó, sigo con la tesorería:", err.message);
+    }
+  }
+  if (!result) {
+    await topUpForUserOp(args.from, args.token, args.amount);
+    result = await sendUserOp(args.owner, calls, args.onSubmitted, { sponsored: false });
+  }
   if (!result.success) throw new Error(`La operación revirtió en la cadena${result.reason ? `: ${result.reason}` : ""}`);
   return result;
 }
