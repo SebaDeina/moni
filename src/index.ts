@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { handleUserText } from "./agent/index.js";
-import { transcribe } from "./agent/transcribe.js";
+import { canTranscribe, transcribe } from "./agent/transcribe.js";
 import { config } from "./config.js";
 import { saveIncomingMessage } from "./db/index.js";
 import { whatsapp, type IncomingMessage } from "./whatsapp/index.js";
@@ -16,6 +16,7 @@ const allowedSenders = new Set(
 
 async function textFromAudio(msg: IncomingMessage): Promise<string> {
   if (msg.audio?.transcript) return msg.audio.transcript;
+  if (!canTranscribe()) return "";
   const audio = await whatsapp.downloadAudio(msg);
   return transcribe(audio.data, audio.mimeType);
 }

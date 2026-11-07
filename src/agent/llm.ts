@@ -1,10 +1,7 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { config } from "../config.js";
 
-/** Cliente compatible con OpenAI. Por defecto apunta a xAI; cambiar LLM_BASE_URL para otro proveedor. */
-export const llm = new OpenAI({
-  apiKey: config.LLM_API_KEY ?? "missing",
-  baseURL: config.LLM_BASE_URL,
-});
+/** Cliente de Claude. Toma la clave de ANTHROPIC_API_KEY (o LLM_API_KEY) y, en las pruebas, la URL de ANTHROPIC_BASE_URL. */
+export const claude = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY ?? config.LLM_API_KEY });
 
-export const MODEL = config.LLM_MODEL;
+export const MODEL = config.MONI_CLAUDE_MODEL;

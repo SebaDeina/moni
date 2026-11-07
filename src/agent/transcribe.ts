@@ -5,9 +5,11 @@ import { config } from "../config.js";
  * Solo se usa cuando Kapso no manda la transcripción en el webhook.
  * https://docs.x.ai/developers/model-capabilities/audio/speech-to-text
  */
+export const canTranscribe = () => Boolean(config.TRANSCRIBE_API_KEY);
+
 export async function transcribe(audio: Buffer, mimeType: string): Promise<string> {
-  const apiKey = config.TRANSCRIBE_API_KEY ?? config.LLM_API_KEY;
-  if (!apiKey) throw new Error("Falta TRANSCRIBE_API_KEY o LLM_API_KEY para transcribir audios");
+  const apiKey = config.TRANSCRIBE_API_KEY;
+  if (!apiKey) throw new Error("Falta TRANSCRIBE_API_KEY para transcribir audios");
 
   const form = new FormData();
   form.append("model", config.TRANSCRIBE_MODEL);

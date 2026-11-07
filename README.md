@@ -8,7 +8,7 @@ Billetera en WhatsApp. Le escribís o le mandás un audio, y te dice tu saldo, q
 
 ```
 WhatsApp ─▶ Kapso (o Baileys) ─▶ webhook HTTPS ─▶ Node + Hono
-                                                  ├─ agent/     LLM con 4 herramientas cerradas
+                                                  ├─ agent/     Claude (Opus 5.5) con 4 herramientas cerradas
                                                   ├─ chain/     viem + Avalanche Data API (Fuji, 43113)
                                                   ├─ confirmations.ts  "SI <código>", fuera del modelo
                                                   └─ db/        SQLite: mensajes, agenda, operaciones
@@ -51,11 +51,17 @@ npm run dev            # http://localhost:3000/health
 
 Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS (por ejemplo `cloudflared tunnel --url http://localhost:3000`) y configurar `https://<túnel>/webhooks/kapso` en Kapso.
 
+## Agente (Claude)
+
+El agente usa el SDK oficial de Anthropic (`@anthropic-ai/sdk`) con `claude-opus-5-5`, effort `medium` y un loop propio de herramientas (máximo 5 vueltas). Tiene activado el fallback del servidor (`fallbacks: "default"`): si el modelo declina un pedido por una política de seguridad, la API lo reintenta con otro modelo. Se configura con `ANTHROPIC_API_KEY`, `MONI_CLAUDE_MODEL` y `MONI_CLAUDE_EFFORT`.
+
+Si en tu terminal está definida `ANTHROPIC_BASE_URL` (por ejemplo, por otra herramienta), el SDK la usa: sacala antes de correr `npm run dev`.
+
 ## WhatsApp con Kapso
 
 1. En Kapso, el webhook del número apunta a `https://moni.nimbodata.com/webhooks/kapso`, con el evento `whatsapp.message.received` y un `secret_key` igual a `KAPSO_WEBHOOK_SECRET`.
 2. Sin `KAPSO_WEBHOOK_SECRET` el webhook responde 503, y con firma inválida responde 401.
-3. Los audios usan la transcripción que manda Kapso. Si no viene, Moni baja el audio y lo transcribe con xAI (`grok-voice-transcribe-2.0`).
+3. Los audios usan la transcripción que manda Kapso. Si no viene y hay `TRANSCRIBE_API_KEY`, Moni baja el audio y lo transcribe con xAI (`grok-voice-transcribe-2.0`); si no, pide que lo escriban.
 4. Para probar en local sin claves reales: `npm run e2e`. Levanta un mock de Kapso, del LLM y del STT y recorre 13 casos (firma, duplicados, transferencia con código, audios, stickers, batch).
 
 ## Producción

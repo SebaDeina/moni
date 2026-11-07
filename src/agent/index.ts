@@ -1,13 +1,14 @@
-import type OpenAI from "openai";
+import type Anthropic from "@anthropic-ai/sdk";
 import { formatEther, parseEther } from "viem";
 import * as chain from "../chain/index.js";
 import { consumeConfirmation, parseConfirmation } from "../confirmations.js";
 import { findContact, listAliases } from "../contacts.js";
 import { executeConfirmedOperation, proposeTransfer } from "../operations.js";
-import { MODEL, llm } from "./llm.js";
+import { config } from "../config.js";
+import { MODEL, claude } from "./llm.js";
 import { tools } from "./tools.js";
 
-type Message = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+type Message = Anthropic.Beta.BetaMessageParam;
 
 const MAX_TOOL_ROUNDS = 5;
 const HISTORY_TURNS = 10;
@@ -35,11 +36,8 @@ function getHistory(sender: string): Message[] {
   return h.messages;
 }
 
-function saveHistory(sender: string, messages: Message[]) {
-  // Guardamos solo los turnos de usuario y asistente con texto; las llamadas a herramientas no hacen falta.
-  const turns = messages.filter(
-    (m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content,
-  );
+/** Guardamos solo pares de texto (usuario, respuesta final): sin herramientas ni bloques de razonamiento. */
+function saveHistory(sender: string, turns: Message[]) {
   histories.set(sender, { messages: turns.slice(-HISTORY_TURNS * 2), updatedAt: Date.now() });
 }
 
@@ -110,36 +108,52 @@ export async function handleUserText(sender: string, text: string): Promise<stri
     return executeConfirmedOperation(sender, operationId);
   }
 
-  const messages: Message[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...getHistory(sender),
-    { role: "user", content: text },
-  ];
+  const history = getHistory(sender);
+  const messages: Message[] = [...history, { role: "user", content: text }];
+  const finish = (answer: string) => {
+    saveHistory(sender, [...history, { role: "user", content: text }, { role: "assistant", content: answer }]);
+    return answer;
+  };
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const completion = await llm.chat.completions.create({ model: MODEL, messages, tools });
-    const reply = completion.choices[0]?.message;
-    if (!reply) break;
+    const response = await claude.beta.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      system: SYSTEM_PROMPT,
+      tools,
+      messages,
+      cache_control: { type: "ephemeral" },
+      output_config: { effort: config.MONI_CLAUDE_EFFORT },
+      // Si el modelo declina por una política de seguridad, la API reintenta con otro modelo.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+    });
 
-    const calls = (reply.tool_calls ?? []).filter((c) => c.type === "function");
-    if (calls.length === 0) {
-      const answer = reply.content?.trim() || "No te entendí, ¿me lo decís de otra forma?";
-      messages.push({ role: "assistant", content: answer });
-      saveHistory(sender, messages.slice(1));
-      return answer;
+    if (response.stop_reason === "refusal") return finish("Con eso no te puedo ayudar.");
+    if (response.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: response.content });
+      continue;
     }
 
-    messages.push({ role: "assistant", content: reply.content ?? null, tool_calls: calls });
-    for (const call of calls) {
-      let args: Record<string, unknown> = {};
-      try {
-        args = JSON.parse(call.function.arguments || "{}");
-      } catch {
-        // argumentos rotos: la herramienta responde con error de validación
-      }
-      const result = await runTool(sender, call.function.name, args);
-      messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
+    const toolUses = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
+      const answer = response.content
+        .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("")
+        .trim();
+      return finish(answer || "No te entendí, ¿me lo decís de otra forma?");
     }
+
+    // El turno completo vuelve tal cual (incluye los bloques de razonamiento), y todos los resultados juntos.
+    messages.push({ role: "assistant", content: response.content });
+    const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+    for (const call of toolUses) {
+      const result = await runTool(sender, call.name, (call.input ?? {}) as Record<string, unknown>);
+      const isError = typeof result === "object" && result !== null && "error" in result;
+      results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result), is_error: isError });
+    }
+    messages.push({ role: "user", content: results });
   }
 
   return "Me trabé procesando eso. ¿Lo probamos de nuevo?";

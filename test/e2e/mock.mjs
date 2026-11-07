@@ -1,4 +1,4 @@
-// Servidor falso: Kapso (envío + media), LLM (chat completions) y STT de xAI.
+// Servidor falso: Kapso (envío + media), Claude (Messages API) y STT de xAI.
 import { createServer } from "node:http";
 
 const sent = [];
@@ -12,35 +12,30 @@ function readBody(req) {
   });
 }
 
-function llmReply(messages) {
-  const last = messages[messages.length - 1];
-  if (last.role === "tool") {
-    const result = JSON.parse(last.content);
+const claudeRequests = [];
+
+function claudeReply(body) {
+  const last = body.messages[body.messages.length - 1];
+  const block = (content, stop_reason) => ({ id: "msg_mock", type: "message", role: "assistant", model: body.model, content, stop_reason, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } });
+  if (Array.isArray(last.content) && last.content[0]?.type === "tool_result") {
+    const result = JSON.parse(last.content[0].content);
     const text = result.codigo
       ? `Para mandarle ${result.monto} a ${result.destino}, respondé SI ${result.codigo} (vence en 2 minutos).`
-      : `Resultado: ${last.content}`;
-    return { role: "assistant", content: text };
+      : `Resultado: ${last.content[0].content}`;
+    return block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "text", text }], "end_turn");
   }
   const user = String(last.content).toLowerCase();
-  if (user.includes("mandale")) {
-    const alias = user.includes("pedro") ? "pedro" : "juan";
-    return {
-      role: "assistant",
-      content: null,
-      tool_calls: [{ id: "call_1", type: "function", function: { name: "propose_native_transfer", arguments: JSON.stringify({ alias, amountAvax: "0.1" }) } }],
-    };
-  }
-  if (user.includes("saldo")) {
-    return { role: "assistant", content: null, tool_calls: [{ id: "call_2", type: "function", function: { name: "get_balance", arguments: "{}" } }] };
-  }
-  return { role: "assistant", content: `Eco: ${last.content}` };
+  const tool = (name, input) => block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "tool_use", id: "toolu_1", name, input }], "tool_use");
+  if (user.includes("mandale")) return tool("propose_native_transfer", { alias: user.includes("pedro") ? "pedro" : "juan", amountAvax: "0.1" });
+  if (user.includes("saldo")) return tool("get_balance", {});
+  return block([{ type: "text", text: `Eco: ${last.content}` }], "end_turn");
 }
 
 createServer(async (req, res) => {
   const body = await readBody(req);
   const json = (code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
 
-  if (req.url === "/_sent") return json(200, { sent, sttCalls });
+  if (req.url === "/_sent") return json(200, { sent, sttCalls, claudeRequests });
   if (req.method === "POST" && req.url.startsWith("/meta/whatsapp/")) {
     if (req.headers["x-api-key"] !== "test-key") return json(401, { error: "bad key" });
     sent.push(JSON.parse(body.toString()));
@@ -51,9 +46,12 @@ createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "audio/ogg" });
     return res.end(Buffer.from("OggS-fake-audio"));
   }
-  if (req.method === "POST" && req.url === "/v1/chat/completions") {
-    const { messages } = JSON.parse(body.toString());
-    return json(200, { id: "c1", object: "chat.completion", created: 0, model: "mock", choices: [{ index: 0, finish_reason: "stop", message: llmReply(messages) }] });
+  if (req.method === "POST" && req.url.startsWith("/v1/messages")) {
+    const claudeKey = req.headers["x-api-key"] ?? String(req.headers.authorization ?? "").replace(/^Bearer /, "");
+    if (claudeKey !== "claude-key") return json(401, { type: "error", error: { type: "authentication_error", message: "bad key" } });
+    const parsed = JSON.parse(body.toString());
+    claudeRequests.push({ model: parsed.model, beta: req.headers["anthropic-beta"], fallbacks: parsed.fallbacks, effort: parsed.output_config?.effort, system: typeof parsed.system === "string", tools: parsed.tools?.length, roles: parsed.messages.map((m) => m.role).join(",") });
+    return json(200, claudeReply(parsed));
   }
   if (req.method === "POST" && req.url === "/v1/stt") {
     sttCalls.push({ auth: req.headers.authorization, size: body.length, fileLast: body.toString("latin1").lastIndexOf('name="file"') > body.toString("latin1").lastIndexOf('name="model"') });

@@ -16,12 +16,14 @@ const Env = z.object({
   // Números que pueden usar el bot, separados por coma (E.164 sin "+"). Vacío = cualquiera.
   ALLOWED_SENDERS: optional,
 
-  // LLM (SDK de OpenAI apuntando a xAI)
+  // Claude. LLM_API_KEY se acepta como alias de ANTHROPIC_API_KEY. Prefijo MONI_ para no chocar con CLAUDE_* de Claude Code.
+  ANTHROPIC_API_KEY: optional,
   LLM_API_KEY: optional,
-  LLM_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
-  LLM_MODEL: z.string().default("grok-4.7"),
+  MONI_CLAUDE_MODEL: z.string().default("claude-opus-5-5"),
+  MONI_CLAUDE_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
 
-  // Transcripción de audios cuando Kapso no manda la transcripción. Por defecto usa LLM_API_KEY.
+  // Transcripción de audios cuando Kapso no manda la transcripción (speech-to-text de xAI).
+  // Sin clave, Moni le pide al usuario que escriba.
   TRANSCRIBE_API_KEY: optional,
   TRANSCRIBE_URL: z.string().url().default("https://api.x.ai/v1/stt"),
   TRANSCRIBE_MODEL: z.string().default("grok-voice-transcribe-2.0"),
