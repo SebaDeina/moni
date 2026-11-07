@@ -1,0 +1,814 @@
+<meta charset="utf-8">
+<title>Moni Brand Book</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: paper-white brand book; full-bleed dithered canvases alternate with quiet text columns on a 12-col grid */
+:root{
+  --papel:#F4F6FA; --blanco:#FFFFFF; --tinta:#0B0E14; --azul:#2F5FD0; --celeste:#9BB6EA;
+  --bruma:#DCE5F8; --grafito:#6C7383; --gris:#8D929C; --linea:#D6DCE7;
+  --display:'Geist','Helvetica Neue',Arial,sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--papel);color:var(--tinta);font-family:var(--display);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{text-wrap:balance;font-weight:400;letter-spacing:-.02em;line-height:1.05}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--mono)}
+.label{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--grafito)}
+.chip{display:inline-flex;align-items:center;gap:10px;background:var(--bruma);color:var(--azul);border-radius:10px;padding:8px 14px;font-size:15px;font-weight:500;white-space:nowrap}
+.chip svg{flex:none}
+.dither{position:relative;overflow:hidden}
+.dither canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* top bar */
+.bar{border-bottom:1px solid var(--linea);background:var(--papel)}
+.bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:14px}
+.lockup{display:flex;align-items:center;gap:10px;font-weight:600;font-size:22px;letter-spacing:-.04em}
+.bar nav{display:flex;gap:22px;flex-wrap:wrap}
+.bar nav a{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--grafito);text-decoration:none}
+.bar nav a:hover,.bar nav a:focus-visible{color:var(--azul)}
+@media (max-width:720px){.bar nav{display:none}}
+
+/* hero */
+.hero{position:relative;background:var(--blanco);border-bottom:1px solid var(--linea)}
+.hero .wrap{position:relative;z-index:2;padding-block:56px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;pointer-events:none}
+.hero h1{font-size:clamp(84px,15vw,200px);color:var(--gris);letter-spacing:-.045em;line-height:.9}
+.hero .sub{margin-top:22px;max-width:34ch;font-family:var(--mono);font-size:clamp(14px,1.5vw,17px);line-height:1.6;color:var(--gris)}
+.hero .chip{pointer-events:auto}
+.hero .field{height:clamp(520px,70vw,760px);margin-top:-200px;cursor:crosshair}
+.hero .caption{position:relative;z-index:2}
+.hero .caption .wrap{padding-block:0 22px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;pointer-events:none}
+@media (max-width:720px){.hero .field{margin-top:-40px;height:560px}.hero .wrap{flex-direction:column}}
+
+/* sections */
+section{padding-block:96px}
+.head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px 48px;margin-bottom:48px;align-items:end}
+.head h2{font-size:clamp(36px,4.6vw,60px)}
+.head p{color:var(--grafito);max-width:58ch}
+@media (max-width:820px){.head{grid-template-columns:minmax(0,1fr)}}
+.ink{background:var(--tinta);color:#E9EDF5}
+.ink .label,.ink .head p{color:#8F97A8}
+
+/* essence */
+.pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--linea);border:1px solid var(--linea)}
+.pillar{background:var(--papel);padding:28px 24px 32px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.pillar h3{font-size:30px}
+.pillar h3 small{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--azul);margin-left:8px;vertical-align:middle}
+.pillar p{color:var(--grafito);font-size:16px}
+.pillar .dither{height:120px;margin:-28px -24px 8px;background:var(--blanco)}
+@media (max-width:820px){.pillars{grid-template-columns:minmax(0,1fr)}}
+
+/* logo */
+.logo-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+.logo-main{background:var(--bruma);aspect-ratio:1/1;max-width:100%;display:grid;place-items:center;position:relative}
+.logo-main .construct{width:min(62%,420px)}
+.logo-main .note{position:absolute;left:20px;bottom:18px;right:20px;display:flex;justify-content:space-between;gap:12px}
+.logo-side{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:16px}
+.lock{display:flex;align-items:center;justify-content:center;gap:14px;font-weight:600;font-size:clamp(40px,5vw,64px);letter-spacing:-.05em;min-height:150px;position:relative}
+.lock .label{position:absolute;left:16px;top:14px;font-size:11px}
+.lock.on-azul{background:var(--azul);color:var(--blanco)}
+.lock.on-azul .label{color:var(--bruma)}
+.lock.on-tinta{background:var(--tinta);color:var(--blanco)}
+.lock.on-papel{background:var(--blanco);color:var(--tinta);border:1px solid var(--linea)}
+.sizes{margin-top:16px;display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;padding:24px;border:1px solid var(--linea);background:var(--blanco)}
+.sizes figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+@media (max-width:820px){.logo-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* color */
+.swatches{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.sw{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sw .chipc{aspect-ratio:3/5;max-width:100%;position:relative;overflow:hidden}
+.sw .chipc::after{content:"";position:absolute;inset:auto -40% -30% -10%;height:70%;border-radius:50% 50% 0 0/100% 100% 0 0;background:var(--band);transform:rotate(-14deg)}
+.sw b{font-weight:500;font-size:17px}
+.sw .mono{font-size:12px;color:var(--grafito);line-height:1.5}
+@media (max-width:980px){.swatches{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.swatches{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ratio{margin-top:20px;display:flex;height:16px;border:1px solid var(--linea)}
+.ratio span{display:block}
+
+/* type */
+.type{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.spec{background:var(--blanco);border:1px solid var(--linea);padding:28px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.spec .aa{font-size:clamp(110px,14vw,180px);line-height:.85;letter-spacing:-.05em}
+.spec.monoface .aa{font-family:var(--mono);font-size:clamp(90px,11vw,150px);letter-spacing:-.04em;color:var(--azul)}
+.spec .chars{font-size:15px;color:var(--grafito);word-break:break-all}
+.scale{grid-column:1/-1;background:var(--blanco);border:1px solid var(--linea)}
+.row{display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:18px 28px;border-top:1px solid var(--linea);align-items:baseline}
+.row:first-child{border-top:0}
+.row .t1{font-size:clamp(40px,6vw,76px);letter-spacing:-.04em;line-height:1}
+.row .t2{font-size:36px;letter-spacing:-.02em;line-height:1.1}
+.row .t3{font-size:17px;line-height:1.55;max-width:60ch}
+.row .t4{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.row .t5{font-family:var(--mono);font-size:28px;font-variant-numeric:tabular-nums;color:var(--azul)}
+@media (max-width:820px){.type{grid-template-columns:minmax(0,1fr)}.row{grid-template-columns:minmax(0,1fr);gap:6px}}
+
+/* voice */
+.voice{display:grid;gap:1px;background:var(--linea);border:1px solid var(--linea)}
+.pair{display:grid;grid-template-columns:200px minmax(0,1fr) minmax(0,1fr);background:var(--papel)}
+.pair>div{padding:20px 24px;min-width:0}
+.pair .yes{font-size:19px}
+.pair .no{color:var(--gris);text-decoration:line-through;text-decoration-color:var(--celeste);text-decoration-thickness:2px}
+.pair.headrow>div{padding-block:12px}
+@media (max-width:820px){.pair{grid-template-columns:minmax(0,1fr)}.pair>div{padding:12px 20px}.pair.headrow{display:none}}
+
+/* lab */
+.lab{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;border:1px solid #232937}
+.lab .stage{height:clamp(420px,52vw,620px);background:var(--labbg,var(--tinta));transition:background .3s}
+.panel{padding:24px;display:flex;flex-direction:column;gap:22px;border-left:1px solid #232937;min-width:0}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.seg button,.colors button{font:inherit;font-family:var(--mono);font-size:13px;border:1px solid #2C3343;background:transparent;color:#C9D0DE;padding:9px 10px;border-radius:8px;cursor:pointer;text-align:left}
+.seg button[aria-pressed="true"]{background:var(--azul);border-color:var(--azul);color:var(--blanco)}
+.seg button:focus-visible,.colors button:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--celeste);outline-offset:2px}
+.ctl{display:flex;flex-direction:column;gap:8px}
+.ctl .top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8F97A8}
+.ctl .top output{color:#E9EDF5;font-variant-numeric:tabular-nums;letter-spacing:0}
+input[type=range]{width:100%;accent-color:var(--azul)}
+.colors{display:flex;gap:6px;flex-wrap:wrap}
+.colors button{display:flex;align-items:center;gap:8px}
+.colors button i{width:14px;height:14px;border-radius:3px;display:block;border:1px solid #3a4152}
+.colors button[aria-pressed="true"]{border-color:var(--celeste);color:#fff}
+.readout{font-family:var(--mono);font-size:12px;line-height:1.7;color:#8F97A8;border-top:1px solid #232937;padding-top:16px;margin-top:auto}
+.readout b{color:#E9EDF5;font-weight:400}
+@media (max-width:900px){.lab{grid-template-columns:minmax(0,1fr)}.panel{border-left:0;border-top:1px solid #232937}}
+
+/* patterns */
+.patterns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.pat{background:var(--blanco);border:1px solid var(--linea);display:flex;flex-direction:column;min-width:0}
+.pat .dither{aspect-ratio:4/5;max-width:100%}
+.pat .meta{padding:16px 18px 18px;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--linea)}
+.pat .meta b{font-weight:500;font-size:20px}
+.pat .meta span{color:var(--grafito);font-size:15px}
+.pat.dark{background:var(--tinta);color:#E9EDF5;border-color:var(--tinta)}
+.pat.dark .meta{border-color:#232937}
+.pat.dark .meta span{color:#8F97A8}
+@media (max-width:820px){.patterns{grid-template-columns:minmax(0,1fr)}}
+
+/* applications */
+.apps{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.app{position:relative;min-width:0}
+.app>.label{position:absolute;left:16px;top:14px;z-index:3}
+.a-chat{grid-column:span 5;background:var(--bruma);display:flex;justify-content:center;padding:64px 16px 40px}
+.a-receipt{grid-column:span 7;background:var(--blanco);border:1px solid var(--linea);min-height:640px;display:flex;align-items:center;justify-content:flex-end;padding:64px 24px 40px}
+.a-receipt .dither{position:absolute;inset:0}
+.a-card{grid-column:span 5;background:var(--bruma);display:grid;place-items:center;padding:64px 24px 40px}
+.a-post{grid-column:span 4}
+.a-icons{grid-column:span 3;background:var(--blanco);border:1px solid var(--linea);display:flex;flex-direction:column;justify-content:center;gap:18px;padding:56px 20px 24px}
+@media (max-width:1080px){.a-chat,.a-receipt{grid-column:span 12}.a-card{grid-column:span 12}.a-post{grid-column:span 7}.a-icons{grid-column:span 5}}
+@media (max-width:640px){.a-post,.a-icons{grid-column:span 12}.a-receipt{padding:56px 12px 24px;justify-content:center}}
+
+/* phone */
+.phone{width:min(330px,100%);background:var(--tinta);border-radius:44px;padding:12px;box-shadow:0 30px 60px -30px rgba(11,14,20,.45)}
+.screen{background:#EEF2F9;border-radius:34px;overflow:hidden;display:flex;flex-direction:column;height:600px}
+.chat-head{background:var(--blanco);display:flex;align-items:center;gap:10px;padding:34px 16px 12px;border-bottom:1px solid var(--linea)}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--tinta);overflow:hidden;position:relative;flex:none}
+.chat-head b{font-weight:600;font-size:16px;display:block;line-height:1.2}
+.chat-head span{font-size:12px;color:var(--azul);font-family:var(--mono)}
+.msgs{flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:8px;overflow:hidden;font-size:14px;line-height:1.4}
+.m{max-width:84%;padding:8px 11px 6px;border-radius:14px;background:var(--blanco);align-self:flex-start;border-bottom-left-radius:4px}
+.m.me{align-self:flex-end;background:var(--azul);color:var(--blanco);border-radius:14px;border-bottom-right-radius:4px}
+.m small{display:block;text-align:right;font-family:var(--mono);font-size:10px;opacity:.6;margin-top:2px}
+.m .amt{font-variant-numeric:tabular-nums;font-weight:600}
+.typing{align-self:flex-start;display:flex;gap:3px;padding:10px 12px;background:var(--blanco);border-radius:14px}
+.typing i{width:5px;height:5px;background:var(--azul);display:block;animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.25}40%{opacity:1}}
+.composer{margin:8px 10px 14px;background:var(--blanco);border-radius:20px;padding:10px 14px;color:var(--gris);font-size:13px}
+
+/* receipt card (Coronal-style) */
+.receipt{position:relative;z-index:2;width:min(420px,100%);background:var(--blanco);border:1px solid #E6EAF1;border-radius:22px;padding:24px;box-shadow:0 40px 80px -40px rgba(11,14,20,.35),0 2px 6px rgba(11,14,20,.05);display:flex;flex-direction:column;gap:14px}
+.receipt .k{font-size:15px;letter-spacing:.02em;text-transform:uppercase}
+.receipt .k span{color:var(--gris)}
+.receipt .big{font-size:clamp(36px,4vw,46px);font-weight:600;letter-spacing:-.035em;font-variant-numeric:tabular-nums;line-height:1}
+.receipt svg.spark{width:100%;height:auto;display:block}
+.receipt .row2{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.receipt .delta{display:flex;align-items:baseline;gap:6px;color:var(--azul)}
+.receipt .delta small{font-family:var(--mono);font-size:10px;color:var(--grafito)}
+.receipt .delta b{font-size:34px;font-weight:300;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.receipt .tags{font-size:15px;color:var(--gris);letter-spacing:.04em}
+.receipt .why{font-size:17px;line-height:1.4;color:#5A616F}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.btns span{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 10px;border-radius:12px;font-size:16px;color:var(--blanco)}
+.btns .cancel{background:var(--azul);box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+.btns .ok{background:var(--tinta);box-shadow:0 8px 14px -8px rgba(11,14,20,.6)}
+
+/* physical card */
+.pcard{width:min(380px,100%);aspect-ratio:1.586/1;border-radius:18px;background:var(--tinta);position:relative;overflow:hidden;color:var(--blanco);box-shadow:0 30px 50px -28px rgba(11,14,20,.55)}
+.pcard .dither{position:absolute;inset:0}
+.pcard .in{position:absolute;inset:0;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;z-index:2}
+.pcard .r{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pcard .wm{display:flex;align-items:center;gap:8px;font-weight:600;font-size:24px;letter-spacing:-.05em}
+.pcard .mono{font-size:11px;letter-spacing:.14em}
+.pcard .num{font-family:var(--mono);font-size:15px;letter-spacing:.14em;font-variant-numeric:tabular-nums}
+.pcard .chipm{width:36px;height:27px;border-radius:5px;background:linear-gradient(135deg,var(--celeste),var(--bruma))}
+
+/* post */
+.post{aspect-ratio:1/1;max-width:100%;background:var(--bruma);position:relative;overflow:hidden}
+.post .dither{position:absolute;inset:-6% -18% 22% 18%}
+.post .copy{position:absolute;left:22px;right:22px;bottom:20px;z-index:2;display:flex;flex-direction:column;gap:10px}
+.post h3{font-size:clamp(30px,3.3vw,42px);font-weight:500;letter-spacing:-.035em;line-height:1}
+.post p{font-family:var(--mono);font-size:12px;color:var(--grafito);line-height:1.5;max-width:34ch}
+.post .tag{position:absolute;left:22px;top:20px;z-index:2;display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:-.04em;font-size:18px}
+
+.icons{display:flex;gap:14px;align-items:flex-end;justify-content:center;flex-wrap:wrap}
+.icons figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.ic{border-radius:24%;display:grid;place-items:center}
+.ic.azul{background:var(--azul)}.ic.tinta{background:var(--tinta)}.ic.papel{background:var(--blanco);border:1px solid var(--linea)}
+figcaption{font-family:var(--mono);font-size:11px;color:var(--grafito);letter-spacing:.06em}
+
+footer{border-top:1px solid var(--linea);padding-block:28px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (prefers-reduced-motion:reduce){.typing i{animation:none;opacity:.6}}
+</style>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="lockup"><span class="mk" data-size="26" data-fg="#2F5FD0"></span>moni</div>
+    <nav aria-label="Secciones">
+      <a href="#esencia">Esencia</a><a href="#logo">Logo</a><a href="#color">Color</a><a href="#tipo">Tipo</a><a href="#shader">Shader</a><a href="#aplicaciones">Aplicaciones</a>
+    </nav>
+    <span class="label">Manual de marca · v0.1</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <h1>Moni</h1>
+      <p class="sub">Tu plata, hablando en WhatsApp. Moni mueve, compara y explica cada peso, capa por capa.</p>
+    </div>
+    <span class="chip">V 0.1
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><g fill="currentColor"><rect x="2" y="2" width="3" height="3"/><rect x="7.5" y="2" width="3" height="3"/><rect x="13" y="2" width="3" height="3"/><rect x="2" y="7.5" width="3" height="3"/><rect x="7.5" y="7.5" width="3" height="3"/><rect x="13" y="7.5" width="3" height="3"/><rect x="2" y="13" width="3" height="3"/><rect x="7.5" y="13" width="3" height="3"/><rect x="13" y="13" width="3" height="3"/></g></svg>
+    </span>
+  </div>
+  <div class="dither field" id="hero" role="img" aria-label="Mapa de Sudamérica en trama de píxeles azules, con envíos de dinero viajando desde Buenos Aires"></div>
+  <div class="caption">
+    <div class="wrap">
+      <span class="label">Fig. 01 · Corredores desde Buenos Aires: Asunción, La Paz, Santa Cruz, Lima, Bogotá, Caracas</span>
+      <span class="label">Pasá el cursor: la trama responde</span>
+    </div>
+  </div>
+</header>
+
+<section id="esencia">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">01 · Esencia</span><h2>Plata que se entiende</h2></div>
+      <p>Moni es un agente en WhatsApp que opera tu cuenta Belo. Le escribís como a un amigo y te responde con números claros. La identidad toma la trama de píxeles de la pantalla y la convierte en un sistema: cada imagen de Moni está hecha de celdas que se encienden o se apagan, igual que cada movimiento de tu plata.</p>
+    </div>
+    <div class="pillars">
+      <div class="pillar"><div class="dither" id="p1" aria-hidden="true"></div><h3>Claridad<small>CLARO</small></h3><p>Cada movimiento viene con su porqué: monto, comisión, regla que aplica y saldo que queda.</p></div>
+      <div class="pillar"><div class="dither" id="p2" aria-hidden="true"></div><h3>Cercanía<small>CERCA</small></h3><p>Habla en rioplatense, entiende “20 lucas” y “mandale a Caro”. Sin jerga bancaria.</p></div>
+      <div class="pillar"><div class="dither" id="p3" aria-hidden="true"></div><h3>Control<small>TUYO</small></h3><p>Nada se mueve sin tu “sí”. Vos ponés los topes y Moni los respeta.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="logo" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">02 · Logo</span><h2>La moneda que habla</h2></div>
+      <p>El símbolo es una moneda con la cola de un globo de chat, dibujada sobre una grilla de 13 × 13. Está tramada con la misma matriz Bayer que usa el shader: sólida donde nace la conversación y cada vez más liviana hacia arriba. El logotipo es Geist Semibold en minúscula con interletra de −5 %.</p>
+    </div>
+    <div class="logo-grid">
+      <div class="logo-main">
+        <div class="construct" id="construct"></div>
+        <div class="note"><span class="label">Grilla 13 × 13 · Bayer 8 × 8</span><span class="label">Área de respeto = 2 celdas</span></div>
+      </div>
+      <div class="logo-side">
+        <div class="lock on-azul"><span class="label">Sobre Azul Moni</span><span class="mk" data-size="64" data-fg="#FFFFFF"></span>moni</div>
+        <div class="lock on-tinta"><span class="label">Sobre Tinta</span><span class="mk" data-size="64" data-fg="#9BB6EA"></span>moni</div>
+        <div class="lock on-papel"><span class="label">Sobre Papel</span><span class="mk" data-size="64" data-fg="#2F5FD0"></span>moni</div>
+      </div>
+    </div>
+    <div class="sizes">
+      <figure><span class="mk" data-size="96" data-fg="#2F5FD0"></span><figcaption>96 px · tramado</figcaption></figure>
+      <figure><span class="mk" data-size="48" data-fg="#2F5FD0"></span><figcaption>48 px · tramado</figcaption></figure>
+      <figure><span class="mk" data-size="32" data-fg="#2F5FD0" data-solid="1"></span><figcaption>32 px · sólido</figcaption></figure>
+      <figure><span class="mk" data-size="20" data-fg="#2F5FD0" data-solid="1"></span><figcaption>20 px · sólido</figcaption></figure>
+      <figure><span class="mk" data-size="16" data-fg="#2F5FD0" data-solid="1"></span><figcaption>16 px · mínimo</figcaption></figure>
+      <p class="label" style="margin-left:auto;max-width:36ch;letter-spacing:.06em;text-transform:none;font-size:12px">Debajo de 40 px la trama se empasta: usar la versión sólida. Nunca girar, delinear ni aplicar degradés al símbolo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="color" class="ink">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">03 · Color</span><h2>Azul sobre papel</h2></div>
+      <p>Un solo color con carácter, el Azul Moni, sostenido por tinta y papel fríos. Los celestes son para fondos y la trama secundaria. Nada de verdes de “éxito”: la confirmación se dice con palabras.</p>
+    </div>
+    <div class="swatches">
+      <div class="sw"><div class="chipc" style="background:#2F5FD0;--band:#9BB6EA"></div><b>Azul Moni</b><span class="mono">#2F5FD0<br>RGB 47 95 208<br>Trama, acciones, marca</span></div>
+      <div class="sw"><div class="chipc" style="background:#0B0E14;--band:#2F5FD0"></div><b>Tinta</b><span class="mono">#0B0E14<br>RGB 11 14 20<br>Texto, confirmar</span></div>
+      <div class="sw"><div class="chipc" style="background:#9BB6EA;--band:#DCE5F8"></div><b>Celeste</b><span class="mono">#9BB6EA<br>RGB 155 182 234<br>Trama sobre tinta</span></div>
+      <div class="sw"><div class="chipc" style="background:#DCE5F8;--band:#F4F6FA"></div><b>Bruma</b><span class="mono">#DCE5F8<br>RGB 220 229 248<br>Chips, fondos suaves</span></div>
+      <div class="sw"><div class="chipc" style="background:#F4F6FA;--band:#FFFFFF"></div><b>Papel</b><span class="mono">#F4F6FA<br>RGB 244 246 250<br>Fondo base</span></div>
+      <div class="sw"><div class="chipc" style="background:#6C7383;--band:#8D929C"></div><b>Grafito</b><span class="mono">#6C7383<br>RGB 108 115 131<br>Texto secundario</span></div>
+    </div>
+    <div class="ratio" aria-label="Proporción de uso: papel 55 %, tinta 20 %, azul 15 %, bruma 7 %, celeste 3 %">
+      <span style="flex:55;background:#F4F6FA"></span><span style="flex:20;background:#0B0E14;outline:1px solid #2a3040"></span><span style="flex:15;background:#2F5FD0"></span><span style="flex:7;background:#DCE5F8"></span><span style="flex:3;background:#9BB6EA"></span>
+    </div>
+    <p class="label" style="margin-top:10px">Proporción de uso · Papel 55 · Tinta 20 · Azul 15 · Bruma 7 · Celeste 3</p>
+  </div>
+</section>
+
+<section id="tipo">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">04 · Tipografía</span><h2>Una voz humana y una voz de máquina</h2></div>
+      <p>Geist lleva los titulares y la conversación. Geist Mono habla cuando Moni muestra datos: montos, alias, horarios, parámetros. Las dos son libres y vienen de Google Fonts.</p>
+    </div>
+    <div class="type">
+      <div class="spec"><span class="label">Display y texto · Geist</span><span class="aa">Aa</span><span class="chars">ABCDEFGHIJKLMNÑOPQRSTUVWXYZ abcdefghijklmnñopqrstuvwxyz ¿?¡! áéíóú</span></div>
+      <div class="spec monoface"><span class="label">Datos · Geist Mono</span><span class="aa">$0,00</span><span class="chars mono">0123456789 $ % · ARS USDT · caro.belo · 14:32</span></div>
+      <div class="scale">
+        <div class="row"><span class="label">Display · 76 / 300</span><span class="t1">¿Cuotas o contado?</span></div>
+        <div class="row"><span class="label">Título · 36 / 400</span><span class="t2">Le mandé $20.000 a Caro</span></div>
+        <div class="row"><span class="label">Texto · 17 / 400</span><span class="t3">Con 12 cuotas sin interés y una inflación mensual estimada de 2,4 %, pagar en cuotas te ahorra $31.800 frente a pagar de contado hoy.</span></div>
+        <div class="row"><span class="label">Dato · 28 mono</span><span class="t5">$ 182.400,00 ARS</span></div>
+        <div class="row"><span class="label">Etiqueta · 12 mono</span><span class="t4">Transferencia · Vía Belo · 14:32</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="voz" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">05 · Voz</span><h2>Así habla Moni</h2></div>
+      <p>Frases cortas, el número primero y la razón después. Moni tutea, usa el voseo y nunca esconde una comisión.</p>
+    </div>
+    <div class="voice">
+      <div class="pair headrow"><div class="label">Situación</div><div class="label">Moni dice</div><div class="label">Moni no dice</div></div>
+      <div class="pair"><div class="label">Envío listo</div><div class="yes">Le mando <b>$20.000</b> a Caro. ¿Confirmás?</div><div class="no">Su transacción se encuentra pendiente de autorización.</div></div>
+      <div class="pair"><div class="label">Tope superado</div><div class="yes">Esto pasa tu tope de $50.000 por semana. Te quedan $12.000.</div><div class="no">Error 403: límite excedido.</div></div>
+      <div class="pair"><div class="label">Comparar pagos</div><div class="yes">Te conviene en cuotas: ahorrás $31.800 contra la inflación.</div><div class="no">La opción B presenta un VAN superior.</div></div>
+      <div class="pair"><div class="label">Duda</div><div class="yes">¿Caro Méndez o Caro Ruiz? Tenés dos.</div><div class="no">No se pudo resolver el destinatario.</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="shader" class="ink">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">06 · Shader</span><h2>La trama</h2></div>
+      <p>Todas las imágenes de Moni salen de un mismo shader WebGL. Primero calcula la luz de cada celda (una moneda 3D, un mapa, una onda) y después la compara con un umbral de la matriz Bayer 8 × 8: si la luz supera el umbral, la celda se enciende. Probalo acá y exportá el look para cualquier pieza.</p>
+    </div>
+    <div class="lab">
+      <div class="dither stage" id="lab" role="img" aria-label="Laboratorio del shader de trama"></div>
+      <div class="panel">
+        <div class="ctl"><div class="top"><span>Fuente</span></div>
+          <div class="seg" id="modes">
+            <button type="button" id="m-coin" data-mode="coin" aria-pressed="true">Moneda</button>
+            <button type="button" id="m-map" data-mode="map" aria-pressed="false">Mapa</button>
+            <button type="button" id="m-flow" data-mode="flow" aria-pressed="false">Flujo</button>
+            <button type="button" id="m-signal" data-mode="signal" aria-pressed="false">Señal</button>
+            <button type="button" id="m-relief" data-mode="relief" aria-pressed="false">Relieve</button>
+            <button type="button" id="m-bubble" data-mode="bubble" aria-pressed="false">Globo</button>
+          </div>
+        </div>
+        <div class="ctl"><div class="top"><label for="r-cell">Celda</label><output id="o-cell">7 px</output></div><input type="range" id="r-cell" min="3" max="16" step="1" value="7"></div>
+        <div class="ctl"><div class="top"><label for="r-gap">Separación</label><output id="o-gap">0.26</output></div><input type="range" id="r-gap" min="0" max="0.5" step="0.02" value="0.26"></div>
+        <div class="ctl"><div class="top"><label for="r-con">Contraste</label><output id="o-con">1.20</output></div><input type="range" id="r-con" min="0.5" max="2.5" step="0.05" value="1.2"></div>
+        <div class="ctl"><div class="top"><label for="r-noi">Ruido</label><output id="o-noi">0.40</output></div><input type="range" id="r-noi" min="0" max="1" step="0.05" value="0.4"></div>
+        <div class="ctl"><div class="top"><span>Tinta / fondo</span></div>
+          <div class="colors" id="colors">
+            <button type="button" id="c1" data-fg="#9BB6EA" data-bg="#0B0E14" aria-pressed="true"><i style="background:#9BB6EA"></i>Celeste</button>
+            <button type="button" id="c2" data-fg="#2F5FD0" data-bg="#FFFFFF" aria-pressed="false"><i style="background:#2F5FD0"></i>Azul</button>
+            <button type="button" id="c3" data-fg="#0B0E14" data-bg="#DCE5F8" aria-pressed="false"><i style="background:#0B0E14"></i>Tinta</button>
+          </div>
+        </div>
+        <div class="readout" id="readout"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="patrones">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">07 · Patrones</span><h2>Tres tramas de sistema</h2></div>
+      <p>Para fondos, packaging y redes. Cada patrón cuenta algo de la plata: cómo circula, cuánto crece y por dónde pasa. Se animan en pantalla y se imprimen congelados.</p>
+    </div>
+    <div class="patterns">
+      <div class="pat"><div class="dither" id="pat1" aria-hidden="true"></div><div class="meta"><b>Flujo</b><span>Ondas escalonadas. La plata que se mueve entre personas.</span></div></div>
+      <div class="pat dark"><div class="dither" id="pat2" aria-hidden="true"></div><div class="meta"><b>Señal</b><span>Barras que suben y bajan. Saldo, rendimiento, actividad.</span></div></div>
+      <div class="pat"><div class="dither" id="pat3" aria-hidden="true"></div><div class="meta"><b>Relieve</b><span>Curvas de nivel. El mapa de tus gastos, capa por capa.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="aplicaciones" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="label">08 · Aplicaciones</span><h2>Moni en el mundo</h2></div>
+      <p>El chat es el producto. El resto de las piezas llevan la misma trama: el comprobante que Moni manda por WhatsApp, la tarjeta Belo, los posteos y el avatar.</p>
+    </div>
+    <div class="apps">
+      <div class="app a-chat">
+        <span class="label">Conversación</span>
+        <div class="phone" aria-label="Ejemplo de conversación con Moni en WhatsApp">
+          <div class="screen">
+            <div class="chat-head"><div class="avatar dither" id="avatar"></div><div><b>Moni</b><span>en línea · vía Belo</span></div></div>
+            <div class="msgs">
+              <div class="m me">che mandale 20 lucas a caro<small>14:31</small></div>
+              <div class="m">Le mando <span class="amt">$20.000</span> a Caro Méndez (caro.belo). Ya le mandaste 14 veces. Sin comisión y dentro de tu tope semanal.<small>14:31</small></div>
+              <div class="m">Respondé <b>SÍ</b> para confirmar.<small>14:31</small></div>
+              <div class="m me">sí<small>14:32</small></div>
+              <div class="m">Listo, enviado ✓<br>Te quedan <span class="amt">$182.400</span>.<small>14:32</small></div>
+              <div class="m me">y la heladera, ¿cuotas o contado?<small>14:33</small></div>
+              <div class="typing" aria-label="Moni está escribiendo"><i></i><i></i><i></i></div>
+            </div>
+            <div class="composer">Escribile a Moni…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app a-receipt">
+        <span class="label">Comprobante por chat</span>
+        <div class="dither" id="receiptmap" aria-hidden="true"></div>
+        <div class="receipt">
+          <div class="k">Transferencia · <span>Vía Belo</span></div>
+          <div class="big">$20.000 ARS</div>
+          <svg class="spark" viewBox="0 0 360 170" aria-label="Saldo de la semana, de lunes a viernes">
+            <g font-family="Geist Mono, monospace" font-size="11" fill="#8D929C"><text x="20" y="14">Lun</text><text x="94" y="14">Mar</text><text x="168" y="14">Mié</text><text x="242" y="14">Jue</text><text x="312" y="14">Vie</text></g>
+            <g stroke="#EEF1F6" stroke-width="1"><line x1="32" y1="26" x2="32" y2="165"/><line x1="106" y1="26" x2="106" y2="165"/><line x1="180" y1="26" x2="180" y2="165"/><line x1="254" y1="26" x2="254" y2="165"/><line x1="324" y1="26" x2="324" y2="165"/><line x1="10" y1="100" x2="350" y2="100"/></g>
+            <path d="M14 34 C40 46 60 52 100 46 S150 36 190 38 S260 34 340 36" fill="none" stroke="#C9CED8" stroke-width="1"/>
+            <path d="M14 34 C40 56 60 72 100 68 S140 44 180 50 S240 40 340 40" fill="none" stroke="#C9CED8" stroke-width="1"/>
+            <path d="M14 34 C24 90 38 156 62 152 S84 100 96 102 S112 126 124 120 S136 66 152 72 S166 118 182 112 S206 82 240 82 L 312 82" fill="none" stroke="#0B0E14" stroke-width="1.6"/>
+            <circle cx="14" cy="34" r="3" fill="#0B0E14"/>
+            <circle cx="312" cy="82" r="15" fill="#F4F6FA" stroke="#E0E4EC"/>
+            <circle cx="312" cy="82" r="3.5" fill="#0B0E14"/>
+          </svg>
+          <div class="row2"><span class="label" style="letter-spacing:.06em">Saldo después del envío</span><span class="delta"><small>−9,9 %</small><b>182.400</b></span></div>
+          <span class="chip" style="align-self:flex-start"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M5.5 9.2l2.3 2.3 4.7-4.8"/></svg>Contacto frecuente · 14 envíos</span>
+          <div class="tags">AGENTE · REGLA SEMANAL · SIN COMISIÓN</div>
+          <p class="why">Le mandé a Caro Méndez (caro.belo) lo que pediste. Usaste $38.000 de tu tope de $50.000 esta semana.</p>
+          <div class="btns"><span class="cancel">Deshacer</span><span class="ok">Ver detalle</span></div>
+        </div>
+      </div>
+
+      <div class="app a-card">
+        <span class="label">Tarjeta Belo · edición Moni</span>
+        <div class="pcard">
+          <div class="dither" id="card" aria-hidden="true"></div>
+          <div class="in">
+            <div class="r"><span class="wm"><span class="mk" data-size="24" data-fg="#FFFFFF" data-solid="1"></span>moni</span><span class="mono">VÍA BELO</span></div>
+            <div class="chipm" aria-hidden="true"></div>
+            <div class="r"><span class="num">•••• 4127</span><span class="mono">DÉBITO</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app a-post">
+        <div class="post">
+          <span class="tag"><span class="mk" data-size="22" data-fg="#0B0E14" data-solid="1"></span>moni</span>
+          <div class="dither" id="post" aria-hidden="true"></div>
+          <div class="copy"><h3>¿Cuotas o contado? Preguntale a Moni.</h3><p>Te hace la cuenta con la inflación del mes, en el mismo chat donde pagás.</p></div>
+        </div>
+      </div>
+
+      <div class="app a-icons">
+        <span class="label">Avatar e ícono</span>
+        <div class="icons">
+          <figure><div class="ic azul" style="width:84px;height:84px"><span class="mk" data-size="52" data-fg="#FFFFFF"></span></div><figcaption>Perfil</figcaption></figure>
+          <figure><div class="ic tinta" style="width:60px;height:60px"><span class="mk" data-size="36" data-fg="#9BB6EA" data-solid="1"></span></div><figcaption>App</figcaption></figure>
+          <figure><div class="ic papel" style="width:40px;height:40px"><span class="mk" data-size="22" data-fg="#2F5FD0" data-solid="1"></span></div><figcaption>Favicon</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap"><span class="label">Moni · HackaTwin 2026 · Track Belo</span><span class="label">Trama: WebGL · Bayer 8 × 8 · 64 umbrales</span></div>
+</footer>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16)/255);
+
+/* ---------- Bayer 8x8 (CPU twin of the shader) ---------- */
+const fr = x => x - Math.floor(x);
+const b2 = (x,y) => { x=Math.floor(x); y=Math.floor(y); return fr(x*.5 + y*y*.75); };
+const b4 = (x,y) => b2(x*.5,y*.5)*.25 + b2(x,y);
+const b8 = (x,y) => b4(x*.5,y*.5)*.25 + b2(x,y);
+const sstep = (a,b,x) => { const t=Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); };
+
+/* ---------- Logo mark: coin + chat tail, dithered ---------- */
+const N = 13;
+function inTri(px,py,ax,ay,bx,by,cx,cy){
+  const s=(ax-cx)*(py-cy)-(ay-cy)*(px-cx), t=(bx-ax)*(py-ay)-(by-ay)*(px-ax);
+  if ((s<0)!==(t<0) && s!==0 && t!==0) return false;
+  const d=(cx-bx)*(py-by)-(cy-by)*(px-bx);
+  return d===0 || (d<0)===(s+t<=0);
+}
+function markCells(solid){
+  const out=[];
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const cx=(x+.5)/N*2-1, cy=(y+.5)/N*2-1;   // y grows downward
+    const disc = cx*cx + (cy+.04)*(cy+.04) < .84*.84;
+    const tail = inTri(cx,cy,-1,1,-.62,.28,-.18,.78);
+    if(!disc && !tail) continue;
+    const g = (cx - cy)/2;                       // -1 bottom-left … 1 top-right
+    const dens = 1 - sstep(-.45,.95,g)*.82;
+    if (solid || dens > b8(x,y) + 1/128) out.push([x,y]);
+  }
+  return out;
+}
+const CELLS = {d:markCells(false), s:markCells(true)};
+function markSVG(size, fg, solid, grid){
+  const cells = solid ? CELLS.s : CELLS.d, gap = solid ? 0 : .16;
+  let r = '';
+  if (grid){
+    for(let i=0;i<=N;i++) r += `<line x1="${i}" y1="0" x2="${i}" y2="${N}"/><line x1="0" y1="${i}" x2="${N}" y2="${i}"/>`;
+    r = `<g stroke="#9BB6EA" stroke-width=".03">${r}</g><circle cx="6.5" cy="6.24" r="5.46" fill="none" stroke="#2F5FD0" stroke-width=".04" stroke-dasharray=".2 .14"/>`;
+  }
+  const w = 1 - gap;
+  r += `<g fill="${fg}">` + cells.map(([x,y]) => `<rect x="${(x+gap/2).toFixed(2)}" y="${(y+gap/2).toFixed(2)}" width="${w}" height="${w}"/>`).join('') + '</g>';
+  const s = size ? `width="${size}" height="${size}"` : 'width="100%"';
+  return `<svg ${s} viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges" aria-hidden="true" style="display:block">${r}</svg>`;
+}
+document.querySelectorAll('.mk').forEach(el => { el.innerHTML = markSVG(+el.dataset.size, el.dataset.fg, !!el.dataset.solid); el.style.display='inline-block'; el.style.lineHeight=0; });
+document.getElementById('construct').innerHTML = markSVG(0, '#2F5FD0', false, true);
+
+/* ---------- WebGL dither engine (one context, many canvases) ---------- */
+const glc = document.createElement('canvas');
+const gl = glc.getContext('webgl', {alpha:true, premultipliedAlpha:true, preserveDrawingBuffer:true, antialias:false});
+if (!gl) { document.querySelectorAll('.dither').forEach(d => d.style.background = 'repeating-linear-gradient(90deg,#2F5FD0 0 5px,transparent 5px 7px)'); return; }
+
+const VS = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+const FS = `
+precision highp float;
+uniform vec2 uGrid; uniform float uTime; uniform int uMode; uniform sampler2D uTex;
+uniform vec3 uFg; uniform float uContrast; uniform float uBias; uniform float uNoise;
+uniform vec3 uMouse; uniform float uZoom;
+float bayer2(vec2 a){a=floor(a);return fract(dot(a,vec2(.5,a.y*.75)));}
+float bayer4(vec2 a){return bayer2(.5*a)*.25+bayer2(a);}
+float bayer8(vec2 a){return bayer4(.5*a)*.25+bayer2(a);}
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+17.;a*=.5;}return v;}
+mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+float sdSeg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.);return length(pa-ba*h);}
+float glyph(vec2 p){
+  float d=sdSeg(p,vec2(-.36,-.34),vec2(-.36,.34));
+  d=min(d,sdSeg(p,vec2(-.36,.34),vec2(0.,-.04)));
+  d=min(d,sdSeg(p,vec2(0.,-.04),vec2(.36,.34)));
+  d=min(d,sdSeg(p,vec2(.36,.34),vec2(.36,-.34)));
+  return d-.075;}
+float box2(vec2 d){return min(max(d.x,d.y),0.)+length(max(d,0.));}
+float coin(vec3 p){
+  float r=length(p.xy);
+  float rim=.006*sin(atan(p.y,p.x)*120.)*smoothstep(.96,1.,r);
+  float base=box2(vec2(r-1.+rim,abs(p.z)-.085));
+  float rel=min(abs(r-.84)-.035,glyph(p.xy));
+  float relief=box2(vec2(rel,abs(p.z)-.115));
+  return min(base,relief);}
+float scene(vec3 p){p.xz=rot(uTime*.65)*p.xz;p.yz=rot(.38+.12*sin(uTime*.4))*p.yz;return coin(p);}
+float srcCoin(vec2 c){
+  vec2 uv=(c-uGrid*.5)/uGrid.y*2.;
+  vec3 ro=vec3(0.,0.,3.4),rd=normalize(vec3(uv,-uZoom));
+  float t=1.5;bool hit=false;
+  for(int i=0;i<72;i++){float d=scene(ro+rd*t);if(d<.002){hit=true;break;}t+=d*.85;if(t>6.)break;}
+  if(!hit) return 0.;
+  vec3 p=ro+rd*t;vec2 e=vec2(.002,0.);
+  vec3 n=normalize(vec3(scene(p+e.xyy)-scene(p-e.xyy),scene(p+e.yxy)-scene(p-e.yxy),scene(p+e.yyx)-scene(p-e.yyx)));
+  vec3 l=normalize(vec3(-.55,.65,.75));
+  float dif=max(dot(n,l),0.);
+  float spec=pow(max(dot(reflect(rd,n),l),0.),18.);
+  float fres=pow(1.-abs(dot(n,-rd)),3.);
+  return .08+dif*.78+spec*.55+fres*.35;}
+float srcFlow(vec2 c){
+  float t=uTime;
+  float w=c.y*.36+2.8*sin(c.x*.042+t*.5)+1.1*sin(c.x*.11-t*.35+c.y*.02);
+  return smoothstep(.2,.8,.5+.5*sin(w));}
+float srcSignal(vec2 c){
+  float col=floor(c.x/3.);
+  float h=.18+.62*(.5+.5*sin(col*.55+uTime*.9+3.*sin(col*.17+uTime*.2)));
+  float y=c.y/uGrid.y;
+  float gapc=step(2.,mod(c.x,3.));
+  return (y<h?mix(1.05,.3,y/h):.0)*(1.-gapc*.85);}
+float srcRelief(vec2 c){
+  vec2 uv=c/uGrid.y;
+  float n=fbm(uv*2.6+vec2(uTime*.035,-uTime*.02));
+  float k=abs(fract(n*8.)-.5)*2.;
+  return max(n*n*.55,1.-smoothstep(.0,.22,k));}
+float srcBubble(vec2 c){
+  vec2 uv=(c-uGrid*.5)/uGrid.y*2.2;
+  uv+=vec2(.08,0.);
+  float wob=.04*sin(uTime*1.3+uv.y*3.);
+  float disc=length(uv-vec2(0.,.06))-.82-wob;
+  vec2 q=uv-vec2(-.7,-.72);
+  float tail=max(max(-q.y,q.x*.9-q.y*.2-.18), -(q.x*.3+q.y)+.0);
+  tail=max(tail,length(q)-.55);
+  float d=min(disc,tail);
+  float inside=1.-smoothstep(-.02,.02,d);
+  float g=(uv.x+uv.y)*.5;
+  float shade=1.-smoothstep(-.7,1.,g)*.8;
+  float halo=.25*exp(-max(d,0.)*9.)*(1.-inside);
+  return inside*shade+halo;}
+void main(){
+  vec2 c=floor(gl_FragCoord.xy);
+  vec2 cc=c+.5;
+  float L;
+  if(uMode==0){
+    L=texture2D(uTex,cc/uGrid).r;
+    float m=smoothstep(.02,.12,L);
+    float n=fbm(cc/uGrid.y*7.+vec2(uTime*.05,-uTime*.03));
+    L+=(n-.5)*uNoise*m*1.4;
+  } else if(uMode==1){ L=srcCoin(cc); L+=(fbm(cc*.15+uTime*.2)-.5)*uNoise*.5*step(.01,L);
+  } else if(uMode==2){ L=srcFlow(cc)+(fbm(cc*.08+uTime*.1)-.5)*uNoise*.6;
+  } else if(uMode==3){ L=srcSignal(cc)+(fbm(cc*.2)-.5)*uNoise*.4;
+  } else if(uMode==4){ L=srcRelief(cc)+(noise(cc*.5)-.5)*uNoise*.3;
+  } else { L=srcBubble(cc)+(fbm(cc*.12+uTime*.15)-.5)*uNoise*.5; }
+  if(uMouse.z>.001){
+    float d=length(cc-uMouse.xy);
+    L+=uMouse.z*(.7*exp(-d*d/70.)+.35*sin(d*.55-uTime*7.)*exp(-d/12.));
+  }
+  L=(L-.5)*uContrast+.5+uBias;
+  float on=step(bayer8(c)+1./128.,L);
+  gl_FragColor=vec4(uFg*on,on);
+}`;
+function sh(type, src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog); gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog,'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+const U = {}; ['uGrid','uTime','uMode','uTex','uFg','uContrast','uBias','uNoise','uMouse','uZoom'].forEach(n => U[n]=gl.getUniformLocation(prog,n));
+const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+[gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(k => gl.texParameteri(gl.TEXTURE_2D,k,gl.CLAMP_TO_EDGE));
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+const src = document.createElement('canvas'), sctx = src.getContext('2d');
+const MODES = {map:0, coin:1, flow:2, signal:3, relief:4, bubble:5};
+
+/* ---------- Map source: South America + remittance corridors ---------- */
+const SA = [[-77.4,8.6],[-75.5,10.5],[-72.5,11.8],[-71.3,12.4],[-70,11.5],[-68,10.6],[-66,10.6],[-63,10.7],[-61,9.6],[-60,8.5],[-58,6.8],[-55,6],[-52,5],[-51,4],[-50,1.8],[-49,.2],[-48.5,-1],[-46,-1.1],[-44,-2.5],[-41.5,-2.9],[-39,-3.6],[-37,-4.8],[-35.2,-5.5],[-34.8,-7.5],[-35.2,-9],[-37,-11.5],[-38.6,-13.5],[-39,-15.5],[-39.6,-18],[-40.5,-20.5],[-41.5,-22.5],[-43.5,-23],[-45.5,-23.8],[-47.5,-24.8],[-48.6,-26.5],[-48.6,-28.4],[-50,-30],[-51,-31.5],[-52.6,-33.6],[-54,-34.7],[-55.6,-34.9],[-57,-34.4],[-58.4,-34.3],[-57.4,-35.6],[-57.2,-36.6],[-57.7,-38.2],[-59.5,-38.8],[-62,-39],[-62.3,-40.6],[-63.8,-41.1],[-65,-41],[-64.4,-42.4],[-63.7,-42.8],[-64.9,-43.3],[-65.3,-45],[-67.5,-46.3],[-66,-47.6],[-65.9,-48],[-67.7,-49.6],[-68.9,-51.3],[-68.4,-52.3],[-69.5,-52.6],[-68.6,-53.5],[-66.6,-54.8],[-68.8,-55.2],[-71,-55],[-72.5,-53.6],[-74.3,-52.4],[-75.4,-50],[-75.5,-47.8],[-74.5,-45.8],[-73.4,-44],[-73.9,-41.8],[-73.6,-39.5],[-73.4,-37.2],[-72.6,-35.5],[-71.6,-33],[-71.5,-30],[-71.3,-28],[-70.5,-25.5],[-70.3,-23],[-70.2,-20.5],[-70.3,-18.4],[-71.4,-17.6],[-73.3,-16.5],[-75.3,-15.2],[-76.3,-13.6],[-77.1,-12.1],[-78.2,-10.2],[-79.4,-7.8],[-81.1,-6],[-81.3,-4.6],[-80.3,-3.4],[-80.4,-2],[-80.9,-1],[-80,.5],[-79,1.5],[-78.6,2.6],[-77.4,4],[-77.3,5.6],[-77.9,7.2]];
+const CITIES = {BUE:[-58.4,-34.6,1],SAO:[-46.6,-23.5,1],RIO:[-43.2,-22.9,.8],LIM:[-77,-12,.85],BOG:[-74.1,4.7,.8],SCL:[-70.6,-33.4,.75],CCS:[-66.9,10.5,.6],MVD:[-56.2,-34.9,.5],COR:[-64.2,-31.4,.45],ROS:[-60.6,-32.9,.4],ASU:[-57.6,-25.3,.45],LPZ:[-68.1,-16.5,.45],SCZ:[-63.2,-17.8,.4],UIO:[-78.5,-.2,.45],GYE:[-79.9,-2.2,.45],MDE:[-75.6,6.2,.5],BSB:[-47.9,-15.8,.5],BHZ:[-43.9,-19.9,.55],POA:[-51.2,-30,.5],SSA:[-38.5,-13,.5],REC:[-34.9,-8.05,.5],FOR:[-38.5,-3.7,.45],MAO:[-60,-3.1,.35],BEL:[-48.5,-1.45,.35],CUR:[-49.3,-25.4,.45],MZA:[-68.8,-32.9,.35],BAQ:[-74.8,11,.4]};
+const ROUTES = ['ASU','LPZ','SCZ','LIM','BOG','CCS','SCL','SAO'];
+function mapSource(view){
+  return (ctx, cols, rows, t) => {
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,cols,rows);
+    const H = rows*view.h, k = H/69;
+    const narrow = cols < rows*.9;
+    const cx0 = cols*(narrow ? view.xn : view.x), cy0 = rows*view.y;
+    const P = ([lo,la]) => [cx0 + (lo+58)*k, cy0 + (13-la)*k];
+    ctx.beginPath(); SA.forEach((pt,i) => { const [x,y]=P(pt); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.closePath();
+    ctx.fillStyle='rgb(112,112,112)'; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.globalCompositeOperation='lighter';
+    for (const c of Object.values(CITIES)){
+      const [x,y]=P(c), r=(1+3.2*c[2])*k*.75;
+      const g=ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,`rgba(255,255,255,${.3+.45*c[2]})`); g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=g; ctx.fillRect(x-r,y-r,2*r,2*r);
+    }
+    ctx.restore();
+    ctx.globalCompositeOperation='lighter';
+    const [bx,by]=P(CITIES.BUE);
+    ROUTES.forEach((code,i) => {
+      const [ex,ey]=P(CITIES[code]);
+      const mx=(bx+ex)/2 - (ey-by)*.18, my=(by+ey)/2 + (ex-bx)*.18;
+      ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=Math.max(.6,k*.25);
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(mx,my,ex,ey); ctx.stroke();
+      const s = fr(t*.12 + i/ROUTES.length);
+      for (let j=0;j<3;j++){
+        const u = Math.max(0, s - j*.03), a=1-j*.3;
+        const x=(1-u)*(1-u)*bx+2*(1-u)*u*mx+u*u*ex, y=(1-u)*(1-u)*by+2*(1-u)*u*my+u*u*ey;
+        const r=Math.max(1.6,k*1.1)*(1-j*.2);
+        const g=ctx.createRadialGradient(x,y,0,x,y,r);
+        g.addColorStop(0,`rgba(255,255,255,${a})`); g.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle=g; ctx.fillRect(x-r,y-r,2*r,2*r);
+      }
+    });
+    ctx.globalCompositeOperation='source-over';
+  };
+}
+
+/* ---------- Targets ---------- */
+const targets = [];
+const patterns = new Map();
+function gapPattern(ctx, cp, gp){
+  const key = cp+'/'+gp;
+  if (!patterns.has(key)){
+    const p=document.createElement('canvas'); p.width=p.height=cp;
+    const x=p.getContext('2d'); x.fillStyle='#000';
+    if (gp>0){ x.fillRect(cp-gp,0,gp,cp); x.fillRect(0,cp-gp,cp,gp); }
+    patterns.set(key,p);
+  }
+  return ctx.createPattern(patterns.get(key),'repeat');
+}
+function add(id, o){
+  const el = document.getElementById(id); if(!el) return null;
+  const canvas = document.createElement('canvas'); el.appendChild(canvas);
+  const T = Object.assign({el, canvas, ctx:canvas.getContext('2d'), visible:true, dirty:true, animated:!reduce,
+    mode:'coin', cell:6, gap:.26, fg:'#2F5FD0', contrast:1.2, bias:0, noise:.4, zoom:2.2, speed:1, offset:0,
+    mouse:{x:0,y:0,s:0,tx:0,ty:0}}, o);
+  if (o.source && !o.mode) T.mode = 'map';
+  new ResizeObserver(() => { T.dirty = true; }).observe(el);
+  new IntersectionObserver(es => { T.visible = es[0].isIntersecting; }, {rootMargin:'120px'}).observe(el);
+  if (o.interactive){
+    el.addEventListener('pointermove', e => {
+      const r=el.getBoundingClientRect();
+      T.mouse.x=(e.clientX-r.left)/T.cell; T.mouse.y=(r.bottom-e.clientY)/T.cell; T.mouse.s=Math.min(1,T.mouse.s+.25); T.dirty=true;
+    });
+  }
+  targets.push(T); return T;
+}
+function render(T, time){
+  const w = T.el.clientWidth, h = T.el.clientHeight; if (!w || !h) return;
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const cp = Math.max(2, Math.round(T.cell*dpr)), gp = T.gap>0 ? Math.max(1, Math.round(T.gap*cp)) : 0;
+  const bw = Math.round(w*dpr), bh = Math.round(h*dpr);
+  if (T.canvas.width!==bw || T.canvas.height!==bh){ T.canvas.width=bw; T.canvas.height=bh; }
+  const cols = Math.ceil(bw/cp), rows = Math.ceil(bh/cp);
+  T.cols = cols; T.rows = rows;
+  glc.width = cols; glc.height = rows; gl.viewport(0,0,cols,rows);
+  const t = time*T.speed + T.offset;
+  if (T.source){
+    src.width = cols; src.height = rows; T.source(sctx, cols, rows, t);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
+  }
+  const m = T.mouse, mscale = T.cell*dpr/cp;
+  gl.uniform2f(U.uGrid, cols, rows); gl.uniform1f(U.uTime, t); gl.uniform1i(U.uMode, MODES[T.mode]);
+  gl.uniform1i(U.uTex, 0); gl.uniform3fv(U.uFg, hex(T.fg)); gl.uniform1f(U.uContrast, T.contrast);
+  gl.uniform1f(U.uBias, T.bias); gl.uniform1f(U.uNoise, T.noise); gl.uniform1f(U.uZoom, T.zoom);
+  gl.uniform3f(U.uMouse, m.x*mscale, m.y*mscale, m.s);
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES,0,3);
+  const c = T.ctx;
+  c.globalCompositeOperation='source-over'; c.clearRect(0,0,bw,bh); c.imageSmoothingEnabled=false;
+  c.drawImage(glc, 0, 0, cols*cp, rows*cp);
+  if (gp){ c.globalCompositeOperation='destination-out'; c.fillStyle=gapPattern(c,cp,gp); c.fillRect(0,0,bw,bh); c.globalCompositeOperation='source-over'; }
+}
+
+/* ---------- Scenes ---------- */
+add('hero', {source:mapSource({h:1.2, x:.66, xn:.55, y:.06}), cell:6, gap:.28, fg:'#2F5FD0', contrast:1.15, noise:.55, interactive:true});
+add('p1', {mode:'signal', cell:5, gap:.24, fg:'#2F5FD0', contrast:1.1, noise:.3, offset:2});
+add('p2', {mode:'flow', cell:5, gap:.24, fg:'#2F5FD0', contrast:1.1, noise:.3, speed:.8});
+add('p3', {mode:'relief', cell:5, gap:.24, fg:'#2F5FD0', contrast:1.15, noise:.3});
+const lab = add('lab', {mode:'coin', cell:7, gap:.26, fg:'#9BB6EA', contrast:1.2, noise:.4, zoom:2.3, interactive:true,
+  source:null});
+add('pat1', {mode:'flow', cell:6, gap:.28, fg:'#0B0E14', contrast:1.25, noise:.25});
+add('pat2', {mode:'signal', cell:6, gap:.28, fg:'#9BB6EA', contrast:1.1, noise:.3});
+add('pat3', {mode:'relief', cell:6, gap:.28, fg:'#2F5FD0', contrast:1.2, noise:.3, offset:5});
+add('receiptmap', {source:mapSource({h:1.45, x:.28, xn:.2, y:-.12}), cell:5, gap:.3, fg:'#2F5FD0', contrast:1.1, noise:.55, offset:3});
+add('card', {mode:'flow', cell:4, gap:.25, fg:'#2F5FD0', contrast:1.15, noise:.35, speed:.6});
+add('post', {mode:'coin', cell:5, gap:.26, fg:'#2F5FD0', contrast:1.25, noise:.3, zoom:2.6, offset:1.1});
+add('avatar', {mode:'coin', cell:2, gap:0, fg:'#9BB6EA', contrast:1.3, noise:.2, zoom:2.4, offset:.6});
+
+/* ---------- Lab controls ---------- */
+const labSources = {map: mapSource({h:1.25, x:.5, xn:.45, y:.02})};
+const $ = id => document.getElementById(id);
+function readout(){
+  $('readout').innerHTML = `uMode = <b>${lab.mode}</b><br>uCell = <b>${lab.cell}px</b> · uGap = <b>${lab.gap.toFixed(2)}</b><br>grilla = <b>${lab.cols||'–'} × ${lab.rows||'–'}</b> celdas<br>umbral = <b>bayer8(celda)</b> · 64 niveles`;
+}
+$('modes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  [...$('modes').children].forEach(x => x.setAttribute('aria-pressed', x===b));
+  lab.mode = b.dataset.mode === 'map' ? 'map' : b.dataset.mode;
+  lab.source = labSources[b.dataset.mode] || null;
+  lab.dirty = true; readout();
+});
+$('colors').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  [...$('colors').children].forEach(x => x.setAttribute('aria-pressed', x===b));
+  lab.fg = b.dataset.fg; lab.el.style.setProperty('--labbg', b.dataset.bg); lab.dirty = true;
+});
+[['r-cell','cell','o-cell',v=>v+' px'],['r-gap','gap','o-gap',v=>(+v).toFixed(2)],['r-con','contrast','o-con',v=>(+v).toFixed(2)],['r-noi','noise','o-noi',v=>(+v).toFixed(2)]]
+  .forEach(([i,k,o,f]) => $(i).addEventListener('input', e => { lab[k] = +e.target.value; $(o).textContent = f(e.target.value); lab.dirty = true; readout(); }));
+
+/* ---------- Loop ---------- */
+let last = -1e9;
+const STILL = 4.2;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (now - last < 33) return;
+  last = now;
+  const time = reduce ? STILL : now/1000;
+  for (const T of targets){
+    if (!T.visible) continue;
+    const moving = T.mouse.s > .002;
+    if (!(T.animated || T.dirty || moving)) continue;
+    render(T, time);
+    T.dirty = false;
+    if (moving) T.mouse.s *= .93;
+  }
+  readout();
+}
+targets.forEach(T => render(T, reduce ? STILL : performance.now()/1000));
+readout();
+requestAnimationFrame(frame);
+})();
+</script>

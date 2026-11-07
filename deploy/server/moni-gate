@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Puerta restringida de Moni en el VPS. Corre como root vía sudo, llamada solo desde
+# moni-gate-ssh (la llave del usuario moni-deploy no puede ejecutar otra cosa).
+#
+#   deploy [sha]     baja main de GitHub (o un commit de main), valida el compose y levanta
+#   logs [líneas]    últimas líneas de logs (por defecto 200, máximo 2000)
+#   status           contenedores y commit desplegado
+#   restart          reinicia los contenedores sin reconstruir
+#
+# Este archivo se instala a mano en /usr/local/sbin. Cambiarlo en el repo no cambia el VPS.
+set -euo pipefail
+
+DIR=/opt/moni
+export GIT_SSH_COMMAND="ssh -i /root/.ssh/moni_deploy_ro -o IdentitiesOnly=yes"
+
+usage() { echo "Comandos: deploy [sha] | logs [líneas] | status | restart" >&2; exit 2; }
+fail() { echo "✗ $*" >&2; exit 1; }
+
+read -r -a args <<< "${1:-}"
+[ "${#args[@]}" -le 2 ] || usage
+cmd="${args[0]:-}"
+arg="${args[1]:-}"
+cd "$DIR"
+
+health() {
+  local port
+  port=$(grep -E '^HOST_PORT=' .env | cut -d= -f2)
+  for _ in $(seq 1 30); do
+    if curl -fsS "http://127.0.0.1:${port:-3970}/health"; then echo; return 0; fi
+    sleep 1
+  done
+  docker compose logs --no-color --tail 50
+  fail "la app no respondió /health"
+}
+
+case "$cmd" in
+  deploy)
+    exec 9>/run/moni-deploy.lock
+    flock -w 600 9 || fail "hay otro deploy en curso"
+    git fetch -q origin main
+    target=$(git rev-parse origin/main)
+    if [ -n "$arg" ]; then
+      [[ "$arg" =~ ^[0-9a-f]{7,40}$ ]] || fail "sha inválido"
+      target=$(git rev-parse --verify -q "${arg}^{commit}") || fail "no conozco ese commit"
+      git merge-base --is-ancestor "$target" origin/main || fail "solo se despliegan commits de main"
+    fi
+    # El .env de producción vive solo en el VPS; un .env commiteado lo pisaría.
+    ! git cat-file -e "${target}:.env" 2>/dev/null || fail "el commit trae un .env: sacalo del repo"
+    git reset -q --hard "$target"
+    echo "▸ Desplegando $(git log -1 --format='%h %s')"
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    docker compose config --no-normalize --no-interpolate --no-path-resolution --format json > "$tmp/raw.json"
+    docker compose config --format json > "$tmp/norm.json"
+    /usr/local/sbin/moni-validate-compose "$tmp/raw.json" "$tmp/norm.json" "$DIR"
+    docker compose up -d --build --remove-orphans
+    health
+    ;;
+  logs)
+    lines="${arg:-200}"
+    [[ "$lines" =~ ^[0-9]{1,4}$ ]] && [ "$lines" -le 2000 ] || fail "líneas: un número entre 1 y 2000"
+    docker compose logs --no-color --tail "$lines"
+    ;;
+  status)
+    [ -z "$arg" ] || usage
+    git log -1 --format='Commit: %h %s (%cr)'
+    docker compose ps
+    ;;
+  restart)
+    [ -z "$arg" ] || usage
+    docker compose restart
+    health
+    ;;
+  *) usage ;;
+esac

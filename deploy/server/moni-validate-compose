@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""
+Valida el docker-compose de Moni antes de cada deploy en el VPS compartido.
+
+El VPS corre otros servicios, así que el compose del repo solo puede usar lo que
+no da acceso al servidor: nada de bind mounts, modo privilegiado, red del host,
+puertos públicos ni archivos fuera del repo. Es una lista de permitidos: cualquier
+clave nueva se rechaza hasta que alguien con root la revise.
+
+Uso: moni-validate-compose <raw.json> <normalized.json> <dir-del-repo>
+  raw.json:        docker compose config --no-normalize --no-interpolate --no-path-resolution --format json
+  normalized.json: docker compose config --format json
+"""
+import json
+import os
+import re
+import sys
+
+TOP_KEYS = {"name", "services", "volumes", "networks"}
+SERVICE_KEYS = {
+    "build", "image", "restart", "env_file", "environment", "ports", "volumes",
+    "depends_on", "command", "entrypoint", "healthcheck", "networks", "working_dir",
+    "user", "expose", "labels", "init", "stop_grace_period", "tmpfs", "mem_limit", "cpus",
+}
+BUILD_KEYS = {"context", "dockerfile", "dockerfile_inline", "args", "target"}
+PORT_RANGE = range(3970, 3980)
+DANGEROUS_RUN = re.compile(r"--(network|security)\s*=", re.IGNORECASE)
+
+errors: list[str] = []
+
+
+def fail(msg: str) -> None:
+    errors.append(msg)
+
+
+def safe_relative(path: str) -> bool:
+    return bool(path) and not os.path.isabs(path) and ".." not in path.replace("\\", "/").split("/")
+
+
+def check_raw(raw: dict, repo: str) -> None:
+    for key in set(raw) - TOP_KEYS:
+        fail(f"clave de primer nivel no permitida: {key}")
+
+    for name, vol in (raw.get("volumes") or {}).items():
+        extra = set(vol or {}) - {"name"}
+        if extra:
+            fail(f"volumen {name}: no se permite {sorted(extra)} (solo volúmenes con nombre)")
+
+    for name, net in (raw.get("networks") or {}).items():
+        net = net or {}
+        extra = set(net) - {"name", "driver"}
+        if extra:
+            fail(f"red {name}: no se permite {sorted(extra)}")
+        if net.get("driver", "bridge") != "bridge":
+            fail(f"red {name}: solo driver bridge")
+
+    for svc_name, svc in (raw.get("services") or {}).items():
+        where = f"servicio {svc_name}"
+        for key in set(svc) - SERVICE_KEYS:
+            fail(f"{where}: clave no permitida: {key}")
+
+        for entry in svc.get("env_file") or []:
+            path = entry if isinstance(entry, str) else entry.get("path", "")
+            if path not in (".env", "./.env"):
+                fail(f"{where}: env_file solo puede ser .env (recibido {path!r})")
+
+        build = svc.get("build")
+        if build is not None:
+            build = {"context": build} if isinstance(build, str) else build
+            for key in set(build) - BUILD_KEYS:
+                fail(f"{where}: build.{key} no permitido")
+            context = build.get("context", ".")
+            if not safe_relative(context):
+                fail(f"{where}: build.context tiene que ser una ruta relativa dentro del repo")
+                continue
+            if "dockerfile_inline" in build:
+                dockerfile_text = build["dockerfile_inline"]
+            else:
+                dockerfile = build.get("dockerfile", "Dockerfile")
+                if not safe_relative(dockerfile):
+                    fail(f"{where}: build.dockerfile tiene que ser una ruta relativa dentro del repo")
+                    continue
+                path = os.path.realpath(os.path.join(repo, context, dockerfile))
+                if not path.startswith(os.path.realpath(repo) + os.sep):
+                    fail(f"{where}: el Dockerfile tiene que estar dentro del repo")
+                    continue
+                try:
+                    with open(path, encoding="utf-8") as fh:
+                        dockerfile_text = fh.read()
+                except OSError:
+                    fail(f"{where}: no encuentro {context}/{dockerfile}")
+                    continue
+            if DANGEROUS_RUN.search(dockerfile_text):
+                fail(f"{where}: el Dockerfile no puede usar RUN --network ni --security")
+
+
+def check_normalized(norm: dict) -> None:
+    declared_volumes = set(norm.get("volumes") or {})
+    for svc_name, svc in (norm.get("services") or {}).items():
+        where = f"servicio {svc_name}"
+        for vol in svc.get("volumes") or []:
+            kind = vol.get("type")
+            if kind == "tmpfs":
+                continue
+            if kind != "volume" or vol.get("source") not in declared_volumes:
+                fail(f"{where}: solo volúmenes con nombre declarados en el compose (no carpetas del servidor)")
+        for port in svc.get("ports") or []:
+            if port.get("host_ip") != "127.0.0.1":
+                fail(f"{where}: los puertos se publican solo en 127.0.0.1 (Caddy hace el HTTPS)")
+            try:
+                published = int(port.get("published"))
+            except (TypeError, ValueError):
+                published = -1
+            if published not in PORT_RANGE:
+                fail(f"{where}: puerto {port.get('published')} fuera del rango asignado 3970-3979")
+
+
+def main() -> int:
+    raw_path, norm_path, repo = sys.argv[1:4]
+    with open(raw_path, encoding="utf-8") as fh:
+        raw = json.load(fh)
+    with open(norm_path, encoding="utf-8") as fh:
+        norm = json.load(fh)
+    check_raw(raw, repo)
+    check_normalized(norm)
+    if errors:
+        print("✗ El docker-compose no pasa la validación del VPS compartido:", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        print("Si de verdad hace falta, pedile a Seba que lo revise.", file=sys.stderr)
+        return 1
+    print("✓ docker-compose validado")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

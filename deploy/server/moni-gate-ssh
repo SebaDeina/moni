@@ -1,0 +1,3 @@
+#!/bin/sh
+# Comando forzado de las llaves de moni-deploy (ver install.sh). Pasa el pedido a moni-gate.
+exec sudo -n /usr/local/sbin/moni-gate "${SSH_ORIGINAL_COMMAND:-}"

@@ -51,26 +51,48 @@ npm run dev            # http://localhost:3000/health
 
 Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS (por ejemplo `cloudflared tunnel --url http://localhost:3000`) y configurar `https://<túnel>/webhooks/kapso` en Kapso.
 
-## Deploy en el VPS
+## Producción
 
-En el VPS hace falta Docker con el plugin `compose`, y un proxy con HTTPS (Caddy) apuntando a `127.0.0.1:3000`.
+Corre en **https://moni.nimbodata.com**, en un VPS compartido con otros servicios.
 
-El script sube el último commit por SSH (no hace falta que el VPS tenga acceso al repo privado) y reconstruye el contenedor.
+**Cada push a `main` se despliega solo** (`.github/workflows/deploy.yml`). El VPS baja el commit con una llave de solo lectura, valida el `docker-compose.yml`, reconstruye el contenedor y chequea `/health`.
 
-Primera vez, en el VPS: crear `/opt/moni/.env` a partir de `.env.example`.
+### Comandos
 
-Después, desde tu máquina:
+Con tu llave pública autorizada en el VPS (pedírsela a Seba):
 
 ```bash
-VPS=root@<ip> LLAVE=~/.ssh/<llave> deploy/deploy.sh
+deploy/moni.sh status        # commit desplegado y contenedores
+deploy/moni.sh logs 200      # últimas líneas de logs
+deploy/moni.sh deploy        # redeploy de main sin hacer push
+deploy/moni.sh deploy <sha>  # volver a un commit anterior de main
+deploy/moni.sh restart       # reiniciar sin reconstruir
 ```
 
-Ejemplo de bloque de Caddy:
+La llave no da shell: solo acepta esos comandos.
 
-```
-moni.<tu-dominio> {
-  reverse_proxy 127.0.0.1:3000
-}
+### Qué se puede cambiar desde el repo
+
+El `Dockerfile` y el `docker-compose.yml` son del repo, pero como el VPS es compartido, cada deploy los valida (`deploy/server/moni-validate-compose`). Se permite:
+
+- Servicios nuevos (por ejemplo una base de datos) con `build` dentro del repo o una `image`.
+- Volúmenes **con nombre** y `tmpfs`.
+- Puertos publicados solo en `127.0.0.1`, dentro del rango **3970-3979**. Caddy publica el 3970 en `moni.nimbodata.com`.
+- `env_file: .env`.
+
+No se permite: carpetas del servidor como volumen, `privileged`, `network_mode`, `cap_add`, puertos públicos, archivos fuera del repo, ni `RUN --network`/`--security` en el Dockerfile. Si hace falta algo de eso, se habla con Seba.
+
+### Variables de entorno
+
+El `.env` de producción vive solo en el VPS (`/opt/moni/.env`) y no se toca en los deploys. Para cambiar una variable, pedírselo a Seba. Un commit que incluya un `.env` se rechaza.
+
+### Instalación de la puerta (una sola vez, como root)
+
+Los scripts de `deploy/server/` se instalan a mano en `/usr/local/sbin`; cambiarlos en el repo no cambia el VPS.
+
+```bash
+bash deploy/server/install.sh                    # usuario moni-deploy, sudoers, scripts
+bash deploy/server/install.sh add-key llave.pub  # autorizar una llave
 ```
 
 ## Qué se construyó durante el evento
