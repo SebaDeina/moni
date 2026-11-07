@@ -539,6 +539,17 @@ export async function sweepToSmartAccount(account: PrivateKeyAccount, to: Addres
 
   const usdc = await getTokenBalance(account.address, "USDC");
   if (usdc > 0n) {
+    // Si la wallet vieja no tiene AVAX para el gas del transfer, la tesorería le manda lo justo.
+    const [gas, fees, avax] = await Promise.all([
+      publicClient.estimateContractGas({ account: account.address, address: TOKENS.USDC.address!, abi: erc20, functionName: "transfer", args: [getAddress(to), usdc] }),
+      publicClient.estimateFeesPerGas(),
+      getBalance(account.address),
+    ]);
+    const needed = gas * fees.maxFeePerGas * 2n;
+    if (avax < needed && treasuryAddress() !== null) {
+      const topUp = await sendFromTreasury(account.address, needed - avax);
+      await publicClient.waitForTransactionReceipt({ hash: topUp, timeout: 30_000 });
+    }
     last = await walletClient.writeContract({ address: TOKENS.USDC.address!, abi: erc20, functionName: "transfer", args: [getAddress(to), usdc] });
     await publicClient.waitForTransactionReceipt({ hash: last, timeout: 30_000 });
   }

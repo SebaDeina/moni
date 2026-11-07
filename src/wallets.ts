@@ -204,6 +204,44 @@ export async function deployWallet(phone: string): Promise<void> {
 
 /** Al arrancar: despliega las smart accounts que todavía no lo están, de a una. */
 export async function deployPendingWallets(): Promise<void> {
+  migrateContactsToSmartAccounts();
   const rows = db.prepare("SELECT phone FROM wallets WHERE sa_address IS NOT NULL").all() as { phone: string }[];
   for (const { phone } of rows) await deployWallet(phone);
+  await resweepOldWallets();
+}
+
+/**
+ * Si `address` es la wallet vieja (EOA) de un usuario de Moni, devuelve su smart account actual.
+ * Así un contacto o una dirección guardada de antes no manda plata a donde Moni ya no mira.
+ */
+export function currentAddressFor(address: string): `0x${string}` | null {
+  const row = db
+    .prepare("SELECT sa_address FROM wallets WHERE lower(address) = lower(?) AND sa_address IS NOT NULL")
+    .get(address) as { sa_address: `0x${string}` } | undefined;
+  return row?.sa_address ?? null;
+}
+
+/** Contactos guardados con la wallet vieja de un usuario: pasan a su smart account. */
+function migrateContactsToSmartAccounts() {
+  const res = db
+    .prepare(
+      `UPDATE contacts SET address = (SELECT w.sa_address FROM wallets w WHERE lower(w.address) = lower(contacts.address))
+       WHERE lower(address) IN (SELECT lower(address) FROM wallets WHERE sa_address IS NOT NULL)`,
+    )
+    .run();
+  if (res.changes) console.log(`[wallets] ${res.changes} contacto(s) apuntaban a una wallet vieja: ahora apuntan a la smart account`);
+}
+
+/** Lo que haya llegado a una wallet vieja (USDC o AVAX) se pasa a la smart account de su dueño. */
+async function resweepOldWallets() {
+  const rows = db.prepare("SELECT phone FROM wallets WHERE sa_address IS NOT NULL").all() as { phone: string }[];
+  for (const { phone } of rows) {
+    const row = getRow(phone)!;
+    try {
+      const hash = await sweepToSmartAccount(privateKeyToAccount(decrypt(phone, row)), row.sa_address!);
+      if (hash) console.log(`[wallets] saldo nuevo en la wallet vieja ${row.address} pasado a ${row.sa_address}: ${explorerTxUrl(hash)}`);
+    } catch (err) {
+      console.error("[wallets] no pude barrer la wallet vieja de", phone.slice(-4), String(err).slice(0, 200));
+    }
+  }
 }

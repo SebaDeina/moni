@@ -14,7 +14,7 @@ import { FUJI_CHAIN_ID } from "./config.js";
 import { createConfirmation } from "./confirmations.js";
 import { findContact, listAliases, type Contact } from "./contacts.js";
 import { db } from "./db/index.js";
-import { NoWallet, getWallet, signerFor } from "./wallets.js";
+import { NoWallet, currentAddressFor, getWallet, signerFor } from "./wallets.js";
 
 /** Tope por transferencia y moneda. Es testnet, pero evita que un error de tipeo vacíe una wallet. */
 export const MAX_TRANSFER: Record<Token, bigint> = {
@@ -46,6 +46,9 @@ export async function prepareTransfer(
   const contact: Contact | undefined = isAddress(target)
     ? { alias: `${getAddress(target).slice(0, 6)}…${getAddress(target).slice(-4)}`, address: getAddress(target), shared: false }
     : findContact(sender, target);
+  // Una dirección vieja (EOA) de un usuario de Moni: mandamos a su smart account, que es la que Moni mira.
+  const current = contact && currentAddressFor(contact.address);
+  if (contact && current) contact.address = current;
   if (!contact) {
     return target.toLowerCase().startsWith("0x")
       ? { error: "Esa dirección no es válida: tiene que ser 0x seguido de 40 caracteres." }
