@@ -51,6 +51,13 @@ npm run dev            # http://localhost:3000/health
 
 Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS (por ejemplo `cloudflared tunnel --url http://localhost:3000`) y configurar `https://<túnel>/webhooks/kapso` en Kapso.
 
+## WhatsApp con Kapso
+
+1. En Kapso, el webhook del número apunta a `https://moni.nimbodata.com/webhooks/kapso`, con el evento `whatsapp.message.received` y un `secret_key` igual a `KAPSO_WEBHOOK_SECRET`.
+2. Sin `KAPSO_WEBHOOK_SECRET` el webhook responde 503, y con firma inválida responde 401.
+3. Los audios usan la transcripción que manda Kapso. Si no viene, Moni baja el audio y lo transcribe con xAI (`grok-voice-transcribe-2.0`).
+4. Para probar en local sin claves reales hay un mock de Kapso, del LLM y del STT; ver el historial de este README o pedirlo.
+
 ## Producción
 
 Corre en **https://moni.nimbodata.com**, en un VPS compartido con otros servicios.

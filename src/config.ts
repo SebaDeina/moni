@@ -11,15 +11,23 @@ const Env = z.object({
   KAPSO_API_KEY: optional,
   KAPSO_PHONE_NUMBER_ID: optional,
   KAPSO_WEBHOOK_SECRET: optional,
+  KAPSO_API_BASE: z.string().url().default("https://api.kapso.ai"),
   BAILEYS_AUTH_DIR: z.string().default("./data/baileys-auth"),
+  // Números que pueden usar el bot, separados por coma (E.164 sin "+"). Vacío = cualquiera.
+  ALLOWED_SENDERS: optional,
 
   // LLM (SDK de OpenAI apuntando a xAI)
   LLM_API_KEY: optional,
   LLM_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
   LLM_MODEL: z.string().default("grok-4.7"),
 
-  // Transcripción de audios
+  // Transcripción de audios cuando Kapso no manda la transcripción. Por defecto usa LLM_API_KEY.
   TRANSCRIBE_API_KEY: optional,
+  TRANSCRIBE_URL: z.string().url().default("https://api.x.ai/v1/stt"),
+  TRANSCRIBE_MODEL: z.string().default("grok-voice-transcribe-2.0"),
+
+  // Agenda compartida: "juan=0xabc...,maria=0xdef..."
+  CONTACTS: optional,
 
   // Avalanche Fuji
   FUJI_RPC_URL: z.string().url().default("https://api.avax-test.network/ext/bc/C/rpc"),

@@ -5,10 +5,18 @@ export type IncomingMessage = {
   id: string;
   /** Número del remitente en formato E.164 sin "+", por ejemplo "5491122334455". */
   from: string;
-  kind: "text" | "audio";
+  contactName?: string;
+  /** "other" cubre stickers, fotos, ubicaciones, etc.: por ahora solo respondemos que no los entendemos. */
+  kind: "text" | "audio" | "other";
   text?: string;
-  /** Lo que cada proveedor necesite para bajar el audio después. */
-  audioRef?: unknown;
+  /** Tipo original del proveedor ("image", "sticker"...), para "other". */
+  rawType?: string;
+  audio?: {
+    /** Transcripción que ya trae el proveedor, si la trae. */
+    transcript?: string;
+    url?: string;
+    mimeType?: string;
+  };
 };
 
 export type MessageHandler = (msg: IncomingMessage) => Promise<void>;

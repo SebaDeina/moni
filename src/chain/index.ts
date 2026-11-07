@@ -25,7 +25,8 @@ export type WeeklyOutflow = {
   since: number;
 };
 
-class NotImplemented extends Error {
+/** Lo tiran las funciones que todavía no están implementadas; el agente lo traduce a "todavía no disponible". */
+export class NotImplemented extends Error {
   constructor(fn: string) {
     super(`chain.${fn} no implementado`);
   }
