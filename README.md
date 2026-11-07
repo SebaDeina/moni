@@ -55,17 +55,14 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 
 En el VPS hace falta Docker con el plugin `compose`, y un proxy con HTTPS (Caddy) apuntando a `127.0.0.1:3000`.
 
-Primera vez, en el VPS:
+El script sube el último commit por SSH (no hace falta que el VPS tenga acceso al repo privado) y reconstruye el contenedor.
 
-```bash
-git clone https://github.com/<usuario>/moni.git /opt/moni
-cp /opt/moni/.env.example /opt/moni/.env   # completar
-```
+Primera vez, en el VPS: crear `/opt/moni/.env` a partir de `.env.example`.
 
 Después, desde tu máquina:
 
 ```bash
-VPS=root@<ip> LLAVE=~/.ssh/<llave> REPO=https://github.com/<usuario>/moni.git deploy/deploy.sh
+VPS=root@<ip> LLAVE=~/.ssh/<llave> deploy/deploy.sh
 ```
 
 Ejemplo de bloque de Caddy:
