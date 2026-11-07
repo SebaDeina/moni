@@ -55,7 +55,9 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 
 Corre en **https://moni.nimbodata.com**, en un VPS compartido con otros servicios.
 
-**Cada push a `main` se despliega solo** (`.github/workflows/deploy.yml`). El VPS baja el commit con una llave de solo lectura, valida el `docker-compose.yml`, reconstruye el contenedor y chequea `/health`.
+**El deploy es manual**: un push a `main` no cambia producción hasta que Seba despliega, con `deploy/moni.sh deploy` o con el botón *Run workflow* de la Action `Deploy` en GitHub. El VPS baja `main` con una llave de solo lectura, valida el `docker-compose.yml`, reconstruye el contenedor y chequea `/health`.
+
+Para desarrollar, cada uno prueba en local (`npm run dev`) y hace push a `main`.
 
 ### Comandos
 

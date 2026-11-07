@@ -1,8 +1,7 @@
 name: Deploy
 
+# Solo manual: producción cambia cuando Seba lo decide (botón "Run workflow" o deploy/moni.sh deploy).
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

@@ -272,7 +272,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="wrap">
     <div class="head">
       <div><span class="label">02 · Logo</span><h2>La moneda que habla</h2></div>
-      <p>El símbolo es una moneda con la cola de un globo de chat, dibujada sobre una grilla de 13 × 13. Está tramada con la misma matriz Bayer que usa el shader: sólida donde nace la conversación y cada vez más liviana hacia arriba. El logotipo es Geist Semibold en minúscula con interletra de −5 %.</p>
+      <p>El símbolo es una moneda con la cola de un globo de chat, dibujada sobre una grilla de 13 × 13. El canto es sólido; el interior está tramado con la misma matriz Bayer que usa el shader: denso donde nace la conversación y cada vez más liviano hacia arriba. El logotipo es Geist Semibold en minúscula con interletra de −5 %.</p>
     </div>
     <div class="logo-grid">
       <div class="logo-main">
@@ -513,13 +513,12 @@ function inTri(px,py,ax,ay,bx,by,cx,cy){
 function markCells(solid){
   const out=[];
   for(let y=0;y<N;y++) for(let x=0;x<N;x++){
-    const cx=(x+.5)/N*2-1, cy=(y+.5)/N*2-1;   // y grows downward
-    const disc = cx*cx + (cy+.04)*(cy+.04) < .84*.84;
-    const tail = inTri(cx,cy,-1,1,-.62,.28,-.18,.78);
-    if(!disc && !tail) continue;
-    const g = (cx - cy)/2;                       // -1 bottom-left … 1 top-right
-    const dens = 1 - sstep(-.45,.95,g)*.82;
-    if (solid || dens > b8(x,y) + 1/128) out.push([x,y]);
+    const cx=(x+.5)/N*2-1, cy=(y+.5)/N*2-1, r=Math.hypot(cx,cy+.05);   // y grows downward
+    const tail = inTri(cx,cy,-1.02,1.02,-.7,.35,-.3,.82);
+    if (r>.9 && !tail) continue;
+    const rim = r>.68 || tail;                            // solid coin edge + chat tail
+    const dens = 1 - sstep(-.6,.9,(cx-cy)/2)*.85;         // dense bottom-left, light top-right
+    if (solid || rim || dens > b8(x,y) + .01) out.push([x,y]);
   }
   return out;
 }
@@ -529,7 +528,7 @@ function markSVG(size, fg, solid, grid){
   let r = '';
   if (grid){
     for(let i=0;i<=N;i++) r += `<line x1="${i}" y1="0" x2="${i}" y2="${N}"/><line x1="0" y1="${i}" x2="${N}" y2="${i}"/>`;
-    r = `<g stroke="#9BB6EA" stroke-width=".03">${r}</g><circle cx="6.5" cy="6.24" r="5.46" fill="none" stroke="#2F5FD0" stroke-width=".04" stroke-dasharray=".2 .14"/>`;
+    r = `<g stroke="#9BB6EA" stroke-width=".03">${r}</g><circle cx="6.5" cy="6.18" r="5.85" fill="none" stroke="#2F5FD0" stroke-width=".04" stroke-dasharray=".2 .14"/><circle cx="6.5" cy="6.18" r="4.42" fill="none" stroke="#2F5FD0" stroke-width=".04" stroke-dasharray=".2 .14"/>`;
   }
   const w = 1 - gap;
   r += `<g fill="${fg}">` + cells.map(([x,y]) => `<rect x="${(x+gap/2).toFixed(2)}" y="${(y+gap/2).toFixed(2)}" width="${w}" height="${w}"/>`).join('') + '</g>';
