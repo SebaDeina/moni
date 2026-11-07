@@ -1,0 +1,69 @@
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { config } from "../config.js";
+
+mkdirSync(dirname(config.DATABASE_PATH), { recursive: true });
+
+export const db = new DatabaseSync(config.DATABASE_PATH);
+
+db.exec(`
+  PRAGMA journal_mode = WAL;
+
+  -- Cada mensaje entrante, una sola vez: el id del proveedor evita procesar dos veces un webhook repetido.
+  CREATE TABLE IF NOT EXISTS messages (
+    id          TEXT PRIMARY KEY,
+    sender      TEXT NOT NULL,
+    kind        TEXT NOT NULL CHECK (kind IN ('text', 'audio')),
+    body        TEXT,
+    received_at INTEGER NOT NULL
+  );
+
+  -- Agenda precargada: el agente solo puede mandar a alias que existen acá.
+  CREATE TABLE IF NOT EXISTS contacts (
+    owner   TEXT NOT NULL,
+    alias   TEXT NOT NULL,
+    address TEXT NOT NULL,
+    PRIMARY KEY (owner, alias)
+  );
+
+  -- Transferencias propuestas y su estado. Montos en wei como texto (bigint), nunca float.
+  CREATE TABLE IF NOT EXISTS operations (
+    id         TEXT PRIMARY KEY,
+    sender     TEXT NOT NULL,
+    to_alias   TEXT NOT NULL,
+    to_address TEXT NOT NULL,
+    amount_wei TEXT NOT NULL,
+    chain_id   INTEGER NOT NULL,
+    status     TEXT NOT NULL CHECK (status IN ('proposed', 'confirmed', 'sent', 'failed', 'expired')),
+    nonce      INTEGER,
+    tx_hash    TEXT,
+    error      TEXT,
+    created_at INTEGER NOT NULL
+  );
+
+  -- Códigos "SI <código>": vencen a los 2 minutos y se consumen una sola vez.
+  CREATE TABLE IF NOT EXISTS confirmations (
+    code         TEXT NOT NULL,
+    sender       TEXT NOT NULL,
+    operation_id TEXT NOT NULL REFERENCES operations(id),
+    expires_at   INTEGER NOT NULL,
+    consumed_at  INTEGER,
+    PRIMARY KEY (sender, code)
+  );
+`);
+
+/** Guarda el mensaje. Devuelve false si ya lo habíamos recibido (webhook repetido). */
+export function saveIncomingMessage(m: {
+  id: string;
+  sender: string;
+  kind: "text" | "audio";
+  body?: string;
+}): boolean {
+  const result = db
+    .prepare(
+      "INSERT OR IGNORE INTO messages (id, sender, kind, body, received_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .run(m.id, m.sender, m.kind, m.body ?? null, Date.now());
+  return result.changes === 1;
+}

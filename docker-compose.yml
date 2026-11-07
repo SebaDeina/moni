@@ -1,0 +1,13 @@
+services:
+  moni:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    # Solo escucha en localhost: el proxy del VPS (Caddy) publica el HTTPS.
+    ports:
+      - "127.0.0.1:${HOST_PORT:-3000}:3000"
+    volumes:
+      - moni-data:/data
+
+volumes:
+  moni-data:
