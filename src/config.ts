@@ -19,8 +19,8 @@ const Env = z.object({
   // Claude. LLM_API_KEY se acepta como alias de ANTHROPIC_API_KEY. Prefijo MONI_ para no chocar con CLAUDE_* de Claude Code.
   ANTHROPIC_API_KEY: optional,
   LLM_API_KEY: optional,
-  MONI_CLAUDE_MODEL: z.string().default("claude-opus-5-5"),
-  MONI_CLAUDE_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("medium"),
+  MONI_CLAUDE_MODEL: z.string().default("claude-haiku-5-5"),
+  MONI_CLAUDE_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
 
   // Transcripción de audios cuando Kapso no manda la transcripción (speech-to-text de xAI).
   // Sin clave, Moni le pide al usuario que escriba.

@@ -8,7 +8,7 @@ Billetera en WhatsApp. Le escribís o le mandás un audio, y te dice tu saldo, q
 
 ```
 WhatsApp ─▶ Kapso (o Baileys) ─▶ webhook HTTPS ─▶ Node + Hono
-                                                  ├─ agent/     Claude (Opus 5.5) con 4 herramientas cerradas
+                                                  ├─ agent/     Claude (Haiku 5.5) con 4 herramientas cerradas
                                                   ├─ chain/     viem + Avalanche Data API (Fuji, 43113)
                                                   ├─ confirmations.ts  "SI <código>", fuera del modelo
                                                   └─ db/        SQLite: mensajes, agenda, operaciones
@@ -53,7 +53,7 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 
 ## Agente (Claude)
 
-El agente usa el SDK oficial de Anthropic (`@anthropic-ai/sdk`) con `claude-opus-5-5`, effort `medium` y un loop propio de herramientas (máximo 5 vueltas). Tiene activado el fallback del servidor (`fallbacks: "default"`): si el modelo declina un pedido por una política de seguridad, la API lo reintenta con otro modelo. Se configura con `ANTHROPIC_API_KEY`, `MONI_CLAUDE_MODEL` y `MONI_CLAUDE_EFFORT`.
+El agente usa el SDK oficial de Anthropic (`@anthropic-ai/sdk`) con `claude-haiku-5-5`, effort `low` y un loop propio de herramientas (máximo 5 vueltas): para un chat con 4 herramientas alcanza, y es rápido y barato. Con Opus 5.5, Opus 5, Sonnet 5.5 o Fable 5.1 se activa además el fallback del servidor (`fallbacks: "default"`), que reintenta con otro modelo si el pedido se declina por una política de seguridad. Se configura con `ANTHROPIC_API_KEY`, `MONI_CLAUDE_MODEL` y `MONI_CLAUDE_EFFORT`.
 
 Si en tu terminal está definida `ANTHROPIC_BASE_URL` (por ejemplo, por otra herramienta), el SDK la usa: sacala antes de correr `npm run dev`.
 

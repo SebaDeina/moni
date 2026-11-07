@@ -11,6 +11,8 @@ import { tools } from "./tools.js";
 type Message = Anthropic.Beta.BetaMessageParam;
 
 const MAX_TOOL_ROUNDS = 5;
+/** Modelos que aceptan `fallbacks: "default"` en la API de Claude. */
+const SUPPORTS_FALLBACK = /^claude-(fable-5-1|opus-5-5|opus-5|sonnet-5-5)$/.test(MODEL);
 const HISTORY_TURNS = 10;
 const HISTORY_TTL_MS = 30 * 60 * 1000;
 /** Tope por transferencia. Es testnet, pero evita que un error de tipeo vacíe la wallet de la demo. */
@@ -125,8 +127,8 @@ export async function handleUserText(sender: string, text: string): Promise<stri
       cache_control: { type: "ephemeral" },
       output_config: { effort: config.MONI_CLAUDE_EFFORT },
       // Si el modelo declina por una política de seguridad, la API reintenta con otro modelo.
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      // Solo algunos modelos lo aceptan (Haiku no).
+      ...(SUPPORTS_FALLBACK ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
     });
 
     if (response.stop_reason === "refusal") return finish("Con eso no te puedo ayudar.");
