@@ -114,6 +114,30 @@ Variables: `OXGASLESS_API_KEY` (la clave del paymaster de Fuji), y opcionales `O
 - `--self-paid`: el mismo envío de Moni pero sin paymaster (la smart account paga su gas). Prueba bundler, despliegue de la cuenta, pago por MoniVault y lectura de la actividad. Corrida del 7/11: [despliegue + depósito + `setContact` + `pay` en una userOp](https://testnet.snowtrace.io/tx/0x5ad4f48dc7efd9ecf529b2f2a0275707c87d5f21fda307afd7dbc16ade469324), desde la smart account [`0xf26D…97C3`](https://testnet.snowtrace.io/address/0xf26D273ce87d1cC117299B02c830b0d22a2397C3).
 - Sin flag: userOp patrocinada por el paymaster. Necesita `OXGASLESS_API_KEY`.
 
+## Por qué Avalanche
+
+### Finalidad en 1 o 2 segundos
+
+- En Avalanche, un bloque aceptado por los validadores ya no se revierte: tarda 1 o 2 segundos y no hay una confirmación provisoria antes de la definitiva.
+- Cuando Moni contesta "Listo ✅", el pago ya es irreversible.
+- En las L2 de Ethereum, como Base o Arbitrum, la confirmación rápida la da un único servidor, el sequencer, que opera una empresa. La confirmación definitiva llega recién cuando Ethereum finaliza el lote, unos 15 minutos después.
+- Si el sequencer se cae, esa red se detiene. En Avalanche no hay un operador único del que dependa.
+- El bundler de 0xGasless puede demorar un envío, pero no revertirlo. Además, se puede reemplazar por otro, porque ERC-4337 es un estándar.
+- En las pruebas en Fuji, un envío completo tardó entre 6 y 12 segundos.
+
+### Una red propia con reglas a medida (Avalanche L1)
+
+- Moni puede tener su propia blockchain compatible con Ethereum, con sus propios validadores.
+- Las reglas se definen al configurar la red, no hace falta programar un nodo:
+  - `TxAllowList`: solo pueden transaccionar las cuentas verificadas con KUMPLY.
+  - `ContractDeployerAllowList`: controla quién despliega contratos.
+  - `FeeManager`: fees fijos y predecibles.
+  - Gas en un token propio, por ejemplo una stablecoin.
+- La verificación KUMPLY pasa del contrato a la red misma.
+- La red sigue conectada con la C-Chain y con otros L1 por mensajería nativa (Avalanche Interchain Messaging).
+- Hacer esto en otra red implica construir y operar la infraestructura por separado; en Avalanche es configuración.
+- **Estado:** todavía no está implementado. Es el próximo paso después del prototipo.
+
 ## Agenda
 
 Cada usuario tiene su agenda (tabla `contacts`, por número). Además está la agenda compartida de `CONTACTS` en el `.env`, que ven todos y no se puede borrar desde la app.
