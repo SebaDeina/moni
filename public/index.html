@@ -36,6 +36,8 @@
   .bubble.me { justify-self: end; background: var(--azul); color: #fff; border-bottom-right-radius: 4px; }
   .bubble.moni { justify-self: start; background: var(--bruma); color: var(--tinta); border-bottom-left-radius: 4px; }
   .bubble .mono { font-size: 14px; }
+  .chat-buttons { display: flex; gap: 6px; margin-top: 10px; }
+  .chat-buttons span { flex: 1; text-align: center; padding: 7px 8px; border-radius: 10px; background: var(--superficie); color: var(--azul-texto); font-size: 14px; font-weight: 500; }
   .bubble.audio { display: flex; align-items: center; gap: 10px; }
   .wave { display: inline-flex; gap: 2px; align-items: center; height: 18px; }
   .wave i { width: 3px; background: currentColor; border-radius: 2px; opacity: .85; }
@@ -124,8 +126,8 @@
       <div class="bubble me">¿cuánto tengo?</div>
       <div class="bubble moni">Tenés <span class="mono">4,82 AVAX</span>. Esta semana mandaste <span class="mono">1,5</span> y el gas lo pagó Moni.</div>
       <div class="bubble me audio"><span class="wave" aria-hidden="true"><i style="height:6px"></i><i style="height:14px"></i><i style="height:9px"></i><i style="height:17px"></i><i style="height:11px"></i><i style="height:15px"></i><i style="height:7px"></i><i style="height:12px"></i></span><span class="mono">0:04</span></div>
-      <div class="bubble moni">Le mando <span class="mono">0,5 AVAX</span> a caro. Respondé <span class="mono">SI 482913</span> para confirmar (vence en 2 min).</div>
-      <div class="bubble me mono">SI 482913</div>
+      <div class="bubble moni">Le mando <span class="mono">0,5 AVAX</span> a caro. ¿Confirmás?<span class="chat-buttons"><span>✅ Confirmar</span><span>Cancelar</span></span></div>
+      <div class="bubble me">✅ Confirmar</div>
       <div class="bubble moni">Listo. Le llegó a caro en menos de un segundo.<br><span class="mono">testnet.snowtrace.io/tx/0x8f3c…a21e</span></div>
     </div>
   </div>
@@ -152,9 +154,9 @@
       </div>
       <div class="step">
         <span class="n">03</span>
-        <h3>Confirmás con tu código y listo</h3>
-        <p>Respondés “SI” con el código de 6 dígitos y el envío sale por Avalanche. Te llega el link para comprobarlo.</p>
-        <p class="say">“SI 482913”</p>
+        <h3>Confirmás con un toque</h3>
+        <p>Tocás <em>Confirmar</em> (o respondés “sí”) y el envío sale por Avalanche. Te llega el link para comprobarlo.</p>
+        <p class="say">✅ Confirmar</p>
       </div>
     </div>
   </div>
@@ -192,7 +194,7 @@
       <p>La inteligencia artificial entiende lo que pedís, pero no puede mover plata. Cada envío pasa por reglas que el modelo no controla.</p>
     </div>
     <div class="rules">
-      <div class="card rule"><h3>Código de un solo uso</h3><p>Cada envío pide un código de 6 dígitos, atado a tu número y a esa operación. Vence a los 2 minutos y no se puede reusar.</p></div>
+      <div class="card rule"><h3>Confirmación en tu WhatsApp</h3><p>Cada envío espera tu confirmación desde tu propio WhatsApp. Confirma solo el último pedido, vence a los 2 minutos y se puede cancelar.</p></div>
       <div class="card rule"><h3>El modelo nunca firma</h3><p>La IA solo propone. La firma la hace el backend, después de tu confirmación, y el pago pasa por el contrato MoniVault, que aplica la agenda y el tope semanal on-chain.</p></div>
       <div class="card rule"><h3>Agenda cerrada</h3><p>Solo se puede mandar a contactos guardados, por su nombre exacto. Si hay dos “Caro”, Moni pregunta.</p></div>
       <div class="card rule"><h3>Topes por envío</h3><p>Hay un máximo por transferencia, y se chequea el saldo antes de proponer.</p></div>

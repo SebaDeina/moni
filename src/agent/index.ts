@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { formatEther } from "viem";
 import * as chain from "../chain/index.js";
-import { consumeConfirmation, parseConfirmation } from "../confirmations.js";
+import { cancelPending, consumeConfirmation, latestPending, parseConfirmation, parseYesNo } from "../confirmations.js";
 import { confirmContact, listContacts, proposeContact } from "../contacts.js";
 import { executeConfirmedOperation, prepareTransfer } from "../operations.js";
 import { NoWallet, createWallet, getWallet } from "../wallets.js";
@@ -23,14 +23,14 @@ Cómo escribís:
 - Respuestas cortas: una o dos frases, como un mensaje de chat. El número primero, la razón después si hace falta.
 - Sin saludos largos, sin repetir lo que dijo el usuario y sin ofrecer menús ni preguntas al final ("¿querés que…?"), salvo que necesites un dato para seguir.
 - La wallet es de prueba (AVAX en Avalanche Fuji, testnet). Aclaralo solo si preguntan por plata real.
-- Si el pedido es claro, hacelo directo: para un envío, el "SI <código>" ya es la confirmación, no pidas confirmar dos veces. Preguntá solo si falta un dato o es ambiguo (monto, moneda o contacto).
+- Si el pedido es claro, hacelo directo: proponé el envío y pedí la confirmación una sola vez. Preguntá solo si falta un dato o es ambiguo (monto, moneda o contacto).
 
 Reglas:
 - Usá solo las herramientas para saldos, movimientos y transferencias. Nunca inventes montos, direcciones ni hashes.
 - Moni maneja dos monedas: AVAX y USDC (dólar digital). "Dólares", "usd", "dolarcitos" son USDC.
-- Para mandar plata, usá propose_transfer con el alias exacto de la agenda, el monto y la moneda. Si el contacto no existe o es ambiguo, preguntá; mostrá los contactos disponibles.
-- Vos nunca enviás plata: propose_transfer devuelve un código y el usuario confirma respondiendo "SI <código>". Decíselo en una línea con el código exacto (vence en 2 minutos).
-- Para agendar a alguien, usá propose_add_contact con el nombre y la dirección 0x que te pasaron, y pedí el mismo "SI <código>". Nunca inventes ni completes una dirección: si falta o está incompleta, pedila.
+- Para mandar plata, usá propose_transfer con el alias exacto de la agenda (o la dirección 0x completa, si te pasan una), el monto y la moneda. Si el contacto no existe o es ambiguo, preguntá; mostrá los contactos disponibles. Nunca inventes ni completes una dirección: si falta o está cortada, pedila.
+- Vos nunca enviás plata: propose_transfer y propose_add_contact dejan el pedido pendiente. Respondé con una línea que diga qué se va a hacer ("Le mando 2 USDC a caro.") y "¿Confirmás?". El usuario confirma con el botón o respondiendo "sí" (vence en 2 minutos). No menciones códigos.
+- Para agendar a alguien, usá propose_add_contact con el nombre y la dirección 0x que te pasaron. Nunca inventes ni completes una dirección: si falta o está incompleta, pedila.
 - Para saber a quién se le puede mandar, usá list_contacts.
 - Cada número tiene su propia wallet. Si el usuario todavía no tiene, ofrecele crearla; si te lo pide ("crear wallet", "quiero una billetera"), usá create_wallet. Para "¿cuál es mi dirección?", usá get_wallet: mostrá la dirección completa para que la pueda copiar y compartir.
 - Si piden algo en pesos, explicá que por ahora Moni opera en AVAX y USDC, y pedí el monto en una de esas.
@@ -63,7 +63,10 @@ function walletOf(sender: string) {
   return wallet;
 }
 
-async function runTool(sender: string, name: string, args: Record<string, unknown>): Promise<unknown> {
+/** Lo que una vuelta del agente deja anotado para quien responde (por ejemplo, mostrar botones). */
+type TurnContext = { needsConfirmation: boolean };
+
+async function runTool(sender: string, name: string, args: Record<string, unknown>, ctx: TurnContext): Promise<unknown> {
   try {
     switch (name) {
       case "create_wallet": {
@@ -113,13 +116,15 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
       case "propose_add_contact": {
         const proposed = proposeContact(sender, String(args.alias ?? ""), String(args.address ?? ""));
         if ("error" in proposed) return proposed;
-        return { codigo: proposed.code, nombre: proposed.alias, direccion: proposed.address, vence_en: "2 minutos" };
+        ctx.needsConfirmation = true;
+        return { pendiente: true, nombre: proposed.alias, direccion: proposed.address, vence_en: "2 minutos" };
       }
 
       case "propose_transfer": {
         const prepared = await prepareTransfer(sender, String(args.alias ?? ""), String(args.amount ?? ""), args.token);
         if ("error" in prepared) return prepared;
-        return { codigo: prepared.code, destino: prepared.alias, direccion: prepared.address, monto: prepared.amount, vence_en: "2 minutos" };
+        ctx.needsConfirmation = true;
+        return { pendiente: true, destino: prepared.alias, direccion: prepared.address, monto: prepared.amount, vence_en: "2 minutos" };
       }
 
       default:
@@ -133,23 +138,42 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
   }
 }
 
+export type Reply = { text: string; /** Quedó un pedido pendiente: mostrar botones Confirmar / Cancelar. */ confirm: boolean };
+
 /** Recibe el texto del usuario (o la transcripción de su audio) y devuelve la respuesta. */
 export async function handleUserText(sender: string, text: string): Promise<string> {
+  return (await handleUserMessage(sender, text)).text;
+}
+
+export async function handleUserMessage(sender: string, text: string): Promise<Reply> {
+  const ctx: TurnContext = { needsConfirmation: false };
+  const done = (t: string): Reply => ({ text: t, confirm: false });
   // La confirmación la resuelve el backend, nunca el modelo.
   const code = parseConfirmation(text);
   if (code) {
     const operationId = consumeConfirmation(sender, code);
-    if (operationId) return executeConfirmedOperation(sender, operationId);
+    if (operationId) return done(await executeConfirmedOperation(sender, operationId));
     const contactReply = confirmContact(sender, code);
-    if (contactReply) return contactReply;
-    return "Ese código no es válido o ya venció. Pedímelo de nuevo.";
+    if (contactReply) return done(contactReply);
+    return done("Ese código no es válido o ya venció. Pedímelo de nuevo.");
+  }
+  const answer = parseYesNo(text);
+  if (answer) {
+    const pending = latestPending(sender);
+    if (pending && answer === "no") return done(cancelPending(sender, pending) ? "Listo, lo cancelé. No se movió nada." : "Ya no estaba pendiente.");
+    if (pending && pending.kind === "operation") {
+      const operationId = consumeConfirmation(sender, pending.code);
+      return done(operationId ? await executeConfirmedOperation(sender, operationId) : "Esa operación ya no está pendiente.");
+    }
+    if (pending) return done(confirmContact(sender, pending.code) ?? "Ese pedido ya no está pendiente.");
+    // Sin nada pendiente, "sí" / "no" sigue de largo como cualquier mensaje.
   }
 
   const history = getHistory(sender);
   const messages: Message[] = [...history, { role: "user", content: text }];
   const finish = (answer: string) => {
     saveHistory(sender, [...history, { role: "user", content: text }, { role: "assistant", content: answer }]);
-    return answer;
+    return { text: answer, confirm: ctx.needsConfirmation };
   };
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -191,7 +215,7 @@ export async function handleUserText(sender: string, text: string): Promise<stri
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     for (const call of toolUses) {
       const toolStarted = Date.now();
-      const result = await runTool(sender, call.name, (call.input ?? {}) as Record<string, unknown>);
+      const result = await runTool(sender, call.name, (call.input ?? {}) as Record<string, unknown>, ctx);
       console.log(`[tiempos] herramienta ${call.name}: ${Date.now() - toolStarted} ms`);
       const isError = typeof result === "object" && result !== null && "error" in result;
       results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result), is_error: isError });
@@ -199,5 +223,5 @@ export async function handleUserText(sender: string, text: string): Promise<stri
     messages.push({ role: "user", content: results });
   }
 
-  return "Me trabé procesando eso. ¿Lo probamos de nuevo?";
+  return done("Me trabé procesando eso. ¿Lo probamos de nuevo?");
 }

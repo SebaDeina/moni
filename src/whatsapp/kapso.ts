@@ -23,6 +23,7 @@ type KapsoMessagePayload = {
     type?: string;
     from?: string;
     text?: { body?: string };
+    interactive?: { type?: string; button_reply?: { id?: string; title?: string } };
     kapso?: {
       direction?: string;
       transcript?: { text?: string };
@@ -32,6 +33,13 @@ type KapsoMessagePayload = {
   };
   conversation?: { phone_number?: string; contact_name?: string };
 };
+
+/** Ids de los botones que manda Moni y el texto equivalente. */
+export const CONFIRM_BUTTONS = [
+  { id: "moni_confirm", title: "✅ Confirmar" },
+  { id: "moni_cancel", title: "Cancelar" },
+];
+const BUTTON_TEXT: Record<string, string> = { moni_confirm: "sí", moni_cancel: "no" };
 
 /** Pasa un whatsapp.message.received (con o sin buffering) a nuestros mensajes. */
 export function parseKapsoWebhook(body: unknown): IncomingMessage[] {
@@ -46,7 +54,11 @@ export function parseKapsoWebhook(body: unknown): IncomingMessage[] {
     if (!from) continue;
 
     const base = { id: m.id, from, contactName: item.conversation?.contact_name };
-    if (m.type === "text") {
+    if (m.type === "interactive" && m.interactive?.button_reply) {
+      // Botones de Moni: los traducimos a la respuesta que entiende el agente ("sí" / "no").
+      const { id, title } = m.interactive.button_reply;
+      messages.push({ ...base, kind: "text", text: BUTTON_TEXT[id ?? ""] ?? title ?? "" });
+    } else if (m.type === "text") {
       messages.push({ ...base, kind: "text", text: m.text?.body ?? "" });
     } else if (m.type === "audio") {
       messages.push({
@@ -111,6 +123,20 @@ export const kapso: WhatsAppProvider = {
 
   async sendText(to, text) {
     await postMessage({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { body: text } });
+  },
+
+  async sendButtons(to, text, buttons) {
+    await postMessage({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: text.slice(0, 1024) },
+        action: { buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id, title: b.title.slice(0, 20) } })) },
+      },
+    });
   },
 
   // https://docs.kapso.ai/docs/whatsapp/send-messages/mark-read

@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
-import { handleUserText } from "./agent/index.js";
+import { handleUserMessage, type Reply } from "./agent/index.js";
 import { canTranscribe, transcribe } from "./agent/transcribe.js";
 import { config } from "./config.js";
 import { saveIncomingMessage } from "./db/index.js";
@@ -9,7 +9,7 @@ import { startDepositWatcher } from "./deposits.js";
 import { canonicalPhone } from "./phone.js";
 import { upgradeWallets } from "./wallets.js";
 import { createApi } from "./web/api.js";
-import { whatsapp, type IncomingMessage } from "./whatsapp/index.js";
+import { askConfirmation, whatsapp, type IncomingMessage } from "./whatsapp/index.js";
 
 const app = new Hono();
 
@@ -47,7 +47,7 @@ async function onMessage(msg: IncomingMessage) {
     return;
   }
 
-  let reply: string;
+  let reply: Reply;
   try {
     if (msg.kind === "audio") {
       const heard = await textFromAudio(msg);
@@ -55,15 +55,16 @@ async function onMessage(msg: IncomingMessage) {
         await whatsapp.sendText(msg.from, "No llegué a entender el audio. ¿Me lo mandás de nuevo o por escrito?");
         return;
       }
-      reply = await handleUserText(user, heard);
+      reply = await handleUserMessage(user, heard);
     } else {
-      reply = await handleUserText(user, msg.text ?? "");
+      reply = await handleUserMessage(user, msg.text ?? "");
     }
   } catch (err) {
     console.error("[moni] error respondiendo", msg.id, err);
-    reply = "Tuve un problema procesando tu mensaje. Probá de nuevo en un ratito.";
+    reply = { text: "Tuve un problema procesando tu mensaje. Probá de nuevo en un ratito.", confirm: false };
   }
-  await whatsapp.sendText(msg.from, reply);
+  if (reply.confirm) await askConfirmation(msg.from, reply.text);
+  else await whatsapp.sendText(msg.from, reply.text);
   console.log(`[tiempos] ${msg.kind} respondido en ${Date.now() - started} ms`);
 }
 

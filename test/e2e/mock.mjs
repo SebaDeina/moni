@@ -123,10 +123,10 @@ function claudeReply(body) {
     const result = JSON.parse(last.content[0].content);
     const text = result.direccion && "nueva" in result
       ? `${result.nueva ? "Te creé la wallet" : "Ya tenías wallet"}: ${result.direccion}${result.saldo_inicial ? ". Saldo inicial: " + result.saldo_inicial : ""}${result.aviso ? ". " + result.aviso : ""}`
-      : result.codigo && result.monto
-      ? `Para mandarle ${result.monto} a ${result.destino}, respondé SI ${result.codigo} (vence en 2 minutos).`
-      : result.codigo
-        ? `Para agendar a ${result.nombre}, respondé SI ${result.codigo} (vence en 2 minutos).`
+      : result.pendiente && result.monto
+      ? `Le mando ${result.monto} a ${result.destino}. ¿Confirmás?`
+      : result.pendiente
+        ? `¿Agendo a ${result.nombre}?`
         : `Resultado: ${last.content[0].content}`;
     return block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "text", text }], "end_turn");
   }
@@ -134,6 +134,8 @@ function claudeReply(body) {
   const tool = (name, input) => block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "tool_use", id: "toolu_1", name, input }], "tool_use");
   if (user.includes("wallet")) return tool("create_wallet", {});
   if (user.includes("agenda")) return tool("propose_add_contact", { alias: "pedro", address: "0x4444444444444444444444444444444444444444" });
+  const addr = user.match(/0x[0-9a-f]{40}/);
+  if (user.includes("mandale") && addr) return tool("propose_transfer", { alias: addr[0], amount: "2", token: "USDC" });
   if (user.includes("dolares")) return tool("propose_transfer", { alias: "juan", amount: "12.5", token: "USDC" });
   if (user.includes("mandale")) return tool("propose_transfer", { alias: user.includes("pedro") ? "pedro" : "juan", amount: "0.1", token: "AVAX" });
   if (user.includes("saldo")) return tool("get_balance", {});

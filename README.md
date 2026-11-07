@@ -11,7 +11,7 @@ WhatsApp ─▶ Kapso (o Baileys) ─▶ webhook HTTPS ─▶ Node + Hono
                                                   ├─ agent/     Claude (Haiku 5.5) con 4 herramientas cerradas
                                                   ├─ chain/     viem + Avalanche Data API (Fuji, 43113)
                                                   │             └─ gasless.ts  smart accounts + paymaster de 0xGasless
-                                                  ├─ confirmations.ts  "SI <código>", fuera del modelo
+                                                  ├─ confirmations.ts  confirmar / cancelar, fuera del modelo
                                                   └─ db/        SQLite: mensajes, agenda, operaciones
 ```
 
@@ -35,9 +35,9 @@ Cada parte solo habla con las otras a través de las funciones exportadas, así 
 
 ### Seguridad de las transferencias
 
-- El modelo nunca firma. Proponer una transferencia genera un código; el usuario responde `SI <código>` y el backend la ejecuta.
-- El código queda atado al remitente y a la operación, vence a los 2 minutos y se consume una sola vez.
-- Solo se puede mandar a alias de la agenda precargada. Un alias ambiguo no alcanza para enviar.
+- El modelo nunca firma. Proponer una transferencia la deja pendiente; Moni pregunta "¿Confirmás?" con botones de WhatsApp (✅ Confirmar / Cancelar). También se puede responder "sí", "dale", "ok" o "no". El backend ejecuta.
+- La confirmación es del remitente (solo desde su WhatsApp), aplica **solo al último pedido pendiente**, vence a los 2 minutos y se consume una sola vez. "No" o Cancelar lo cancela. El formato anterior `SI <código>` sigue funcionando.
+- Se manda a un contacto de la agenda (nombre exacto; un nombre ambiguo no alcanza) o a una dirección `0x` completa. El modelo no puede inventar ni completar direcciones.
 - Antes de proponer se chequea el saldo (el gas lo cubre Moni). El hash de la userOp se guarda apenas el bundler la acepta, y la operación pasa de `proposed` a `confirmed` en un solo UPDATE, así un reintento no manda dos veces.
 - El pago pasa por `MoniVault.pay`: la agenda y el tope semanal los aplica el contrato.
 - Montos siempre en wei con `bigint`.
@@ -81,7 +81,7 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 
 - **Landing**: `https://moni.nimbodata.com` (`public/index.html`).
 - **Plataforma**: `https://moni.nimbodata.com/app` (`public/app/index.html` + `public/assets/app.js`). Se entra con el número de WhatsApp y un código de 6 dígitos que llega por WhatsApp (vence en 5 minutos, máximo 3 pedidos cada 10 minutos y 5 intentos). Muestra saldo, wallet, contrato, actividad y agenda.
-- **Envíos desde la web**: la web propone y la confirmación llega por WhatsApp con `SI <código>`, con las mismas reglas que el chat (`prepareTransfer` en `src/operations.ts`).
+- **Envíos desde la web**: la web propone y la confirmación llega por WhatsApp con botones, con las mismas reglas que el chat (`prepareTransfer` en `src/operations.ts`).
 - **API**: `src/web/api.ts` (`/api/public`, `/api/auth/*`, `/api/me`, `/api/me/activity`, `/api/transfers`).
 - Diseño según el brand book (`brand/marca.html`): Azul Moni sobre papel, Geist y Geist Mono, logo generado con la misma grilla.
 - Prueba: `npm run e2e:web` (landing, login, panel, envío confirmado por WhatsApp).
@@ -108,7 +108,7 @@ Variables: `OXGASLESS_API_KEY` (la clave del paymaster de Fuji), y opcionales `O
 Cada usuario tiene su agenda (tabla `contacts`, por número). Además está la agenda compartida de `CONTACTS` en el `.env`, que ven todos y no se puede borrar desde la app.
 
 - **Web**: en la tarjeta *Agenda* de `/app` se agrega (nombre + dirección 0x) y se borra.
-- **Chat**: "agendá a Caro: 0x…". Moni propone el contacto y se agrega cuando el usuario responde `SI <código>` (vence en 2 minutos, un solo uso), igual que un envío.
+- **Chat**: "agendá a Caro: 0x…". Moni propone el contacto y se agrega cuando el usuario confirma con el botón o "sí" (vence en 2 minutos, un solo uso), igual que un envío.
 - Solo se puede mandar plata a contactos de la agenda, por su nombre exacto.
 
 ## Usuarios

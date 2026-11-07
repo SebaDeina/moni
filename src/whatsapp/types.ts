@@ -30,6 +30,8 @@ export interface WhatsAppProvider {
   /** Kapso monta su webhook en `app`; Baileys abre el socket. */
   start(app: Hono, onMessage: MessageHandler): Promise<void>;
   sendText(to: string, text: string): Promise<void>;
+  /** Mensaje con botones de respuesta rápida (hasta 3, títulos de hasta 20 caracteres). */
+  sendButtons?(to: string, text: string, buttons: { id: string; title: string }[]): Promise<void>;
   /** Marca el mensaje como leído y muestra "escribiendo…" mientras preparamos la respuesta. */
   markReadAndTyping?(msg: IncomingMessage): Promise<void>;
   downloadAudio(msg: IncomingMessage): Promise<{ data: Buffer; mimeType: string }>;

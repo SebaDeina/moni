@@ -21,7 +21,7 @@ trap 'kill $APP_PID $MOCK_PID 2>/dev/null; pkill -f "tsx src/index.ts" 2>/dev/nu
 for i in $(seq 1 30); do curl -s $APP/health >/dev/null && break; sleep 0.5; done
 
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
-last_wa() { curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const s=JSON.parse(d).sent.at(-1);console.log((s?.to??"")+" ← "+(s?.text?.body??""))})'; }
+last_wa() { curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const s=JSON.parse(d).sent.filter(m=>m.type).at(-1);const btn=s?.interactive?" [botones: "+s.interactive.action.buttons.map(b=>b.reply.title).join(" / ")+"]":"";console.log((s?.to??"")+" ← "+(s?.text?.body??s?.interactive?.body?.text??"")+btn)})'; }
 j() { curl -s -b "$JAR" -c "$JAR" -H 'content-type: application/json' "$@"; }
 
 echo "1. Landing / → $(code $APP/)   /app → $(code $APP/app)   /assets/app.js → $(code $APP/assets/app.js)   logo → $(code $APP/assets/moni-mark.svg)"
@@ -56,9 +56,9 @@ echo "10. Envío a alguien fuera de la agenda → $(j -X POST $APP/api/transfers
 echo "11. Envío por encima del tope → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"50"}')"
 echo "12. Envío de 0,05 a caro → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"0,05"}')"
 echo "    WhatsApp: $(last_wa)"
-CONFIRM=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
-BODY="{\"message\":{\"id\":\"wweb1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"SI $CONFIRM\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
+BODY="{\"message\":{\"id\":\"wweb1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"sí\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
 SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')
+echo "12a. Envío a una dirección sin agendar → $(j -X POST $APP/api/transfers -d '{"alias":"0x8888888888888888888888888888888888888888","amount":"1","token":"USDC"}')"
 echo "12b. Envío de 20 USDC a caro → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"20","token":"USDC"}')"
 echo "12c. Envío de 500 USDC (tope) → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"500","token":"USDC"}')"
 echo "12d. Moneda inválida → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"1","token":"ARS"}')"

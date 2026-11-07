@@ -51,7 +51,7 @@ export const tools: Anthropic.Beta.BetaTool[] = [
   {
     name: "propose_add_contact",
     description:
-      "Prepara agendar un contacto nuevo (nombre + dirección 0x de Avalanche). No lo agrega: devuelve un código que el usuario debe responder con 'SI <código>'.",
+      "Prepara agendar un contacto nuevo (nombre + dirección 0x de Avalanche). No lo agrega: queda pendiente hasta que el usuario confirme.",
     strict: true,
     input_schema: {
       type: "object",
@@ -66,12 +66,12 @@ export const tools: Anthropic.Beta.BetaTool[] = [
   {
     name: "propose_transfer",
     description:
-      "Prepara una transferencia de AVAX o USDC a un contacto de la agenda. No firma: devuelve un código que el usuario debe responder con 'SI <código>'.",
+      "Prepara una transferencia de AVAX o USDC a un contacto de la agenda o a una dirección 0x. No firma: queda pendiente hasta que el usuario confirme.",
     strict: true,
     input_schema: {
       type: "object",
       properties: {
-        alias: { type: "string", description: "Alias exacto de la agenda." },
+        alias: { type: "string", description: "Alias exacto de la agenda, o la dirección 0x completa (40 caracteres hex) si te la pasaron." },
         amount: { type: "string", description: "Monto como texto decimal, por ejemplo '0.25' o '10'." },
         token: { type: "string", enum: ["AVAX", "USDC"], description: "Moneda. USDC es el dólar digital." },
       },

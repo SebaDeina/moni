@@ -24,7 +24,8 @@ post() { # $1 body, $2 event (opcional), $3 firma (opcional)
     -H "x-webhook-event: ${2:-whatsapp.message.received}" -H "x-webhook-signature: $sig" --data-binary "$1"
 }
 text_msg() { echo "{\"message\":{\"id\":\"$1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"$2\"},\"kapso\":{\"direction\":\"inbound\"}},\"conversation\":{\"phone_number\":\"5491100000000\"},\"phone_number_id\":\"999\"}"; }
-last_sent() { sleep 1.2; curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const s=JSON.parse(d).sent;console.log(s.length+" | "+(s.at(-1)?.text?.body??"").replace(/\n/g," ⏎ "))})'; }
+last_sent() { sleep 1.2; curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const s=JSON.parse(d).sent.filter(m=>m.type);const m=s.at(-1)||{};const body=m.text?.body??m.interactive?.body?.text??"";const btn=m.interactive?" [botones: "+m.interactive.action.buttons.map(b=>b.reply.title).join(" / ")+"]":"";console.log(s.length+" | "+(body+btn).replace(/\n/g," ⏎ "))})'; }
+button_msg() { echo "{\"message\":{\"id\":\"$1\",\"type\":\"interactive\",\"from\":\"5491100000000\",\"interactive\":{\"type\":\"button_reply\",\"button_reply\":{\"id\":\"$2\",\"title\":\"x\"}},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"; }
 
 echo "1. Firma inválida → $(post "$(text_msg w1 hola)" "" deadbeef)"
 echo "2. Evento que no es mensaje → $(post '{"message":{}}' whatsapp.message.sent)"
@@ -33,9 +34,8 @@ echo "4. Mismo webhook repetido → $(post "$(text_msg w3 hola)")"; last_sent
 echo "4b. 'crear wallet' → $(post "$(text_msg w4b 'quiero crear mi wallet')")"; last_sent
 echo "4c. 'crear wallet' otra vez → $(post "$(text_msg w4c 'crear wallet de nuevo')")"; last_sent
 echo "5. 'mandale a juan' → $(post "$(text_msg w5 'mandale 0.1 a juan')")"; last_sent
-CODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
-echo "6. Confirmo con SI $CODE → $(post "$(text_msg w6 "SI $CODE")")"; last_sent
-echo "7. Reuso el mismo código → $(post "$(text_msg w7 "si $CODE")")"; last_sent
+echo "6. Confirmo con el botón → $(post "$(button_msg w6 moni_confirm)")"; last_sent
+echo "7. 'sí' sin nada pendiente → $(post "$(text_msg w7 "sí")")"; last_sent
 echo "8. 'mandale a pedro' (no está en la agenda) → $(post "$(text_msg w8 'mandale 0.1 a pedro')")"; last_sent
 echo "9. 'saldo' → $(post "$(text_msg w9 'cuanto saldo tengo')")"; last_sent
 AUDIO_T='{"message":{"id":"w10","type":"audio","from":"5491100000000","audio":{"id":"m1"},"kapso":{"direction":"inbound","has_media":true,"transcript":{"text":"hola desde un audio"},"media_url":"http://localhost:3998/media/audio1"}},"phone_number_id":"999"}'
@@ -48,12 +48,11 @@ echo "12. Sticker → $(post "$STICKER")"; last_sent
 BATCH="{\"type\":\"whatsapp.message.received\",\"batch\":true,\"data\":[$(text_msg w13 uno),$(text_msg w14 dos)]}"
 echo "13. Batch de 2 → $(post "$BATCH")"; sleep 1; last_sent
 echo "13b. 'mandale 12,5 dolares a juan' → $(post "$(text_msg w13b 'mandale 12,5 dolares a juan')")"; last_sent
-UCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
-echo "13c. Confirmo el envío en USDC → $(post "$(text_msg w13c "SI $UCODE")")"; last_sent
+echo "13c. Confirmo escribiendo 'dale' → $(post "$(text_msg w13c "dale")")"; last_sent
+echo "13d. A una dirección sin agendar → $(post "$(text_msg w13d 'mandale 2 dolares a 0x7777777777777777777777777777777777777777')")"; last_sent
+echo "13e. Cancelo con 'no' → $(post "$(text_msg w13e "no")")"; last_sent
 echo "14. 'agendá a pedro' → $(post "$(text_msg w15 'agenda a pedro 0x4444444444444444444444444444444444444444')")"; last_sent
-CCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
-echo "15. Confirmo el contacto con SI $CCODE → $(post "$(text_msg w16 "SI $CCODE")")"; last_sent
-echo "16. Reuso el código del contacto → $(post "$(text_msg w17 "SI $CCODE")")"; last_sent
+echo "15. Confirmo el contacto con 'sí' → $(post "$(text_msg w16 "sí")")"; last_sent
 echo "17. Ahora 'mandale a pedro' → $(post "$(text_msg w18 'mandale 0.1 a pedro')")"; last_sent
 echo "    nodo falso: $(curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d);console.log(m.rawTxs+" tx firmadas por la tesorería (fondeo) | "+m.userOps.length+" userOps al bundler, "+m.sponsored+" patrocinadas | remitente: "+[...new Set(m.userOps.map(u=>u.sender))].join(","))})')"
 echo "--- requests a Claude (modelo, beta, fallbacks, effort, roles)"

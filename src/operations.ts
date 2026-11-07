@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getAddress, isAddress } from "viem";
 import {
   NotImplemented,
   canSend,
@@ -28,7 +29,7 @@ export type PreparedTransfer =
 
 /**
  * Valida y deja propuesta una transferencia. Lo usan el agente de WhatsApp y la web, con las
- * mismas reglas: contacto exacto de la agenda, monto en AVAX o USDC, tope y saldo (más el gas).
+ * mismas reglas: contacto exacto de la agenda (o una dirección 0x completa), monto en AVAX o USDC, tope y saldo.
  */
 export async function prepareTransfer(
   sender: string,
@@ -40,8 +41,16 @@ export async function prepareTransfer(
   if (!isToken(token)) return { error: "Por ahora Moni maneja AVAX y USDC." };
   const wallet = getWallet(sender);
   if (!wallet) return { error: new NoWallet().message };
-  const contact = findContact(sender, alias);
-  if (!contact) return { error: `No tengo a "${alias}" en la agenda.`, contactos: listAliases(sender) };
+  // Una dirección 0x completa se puede usar directo, sin agendarla.
+  const target = alias.trim();
+  const contact: Contact | undefined = isAddress(target)
+    ? { alias: `${getAddress(target).slice(0, 6)}…${getAddress(target).slice(-4)}`, address: getAddress(target), shared: false }
+    : findContact(sender, target);
+  if (!contact) {
+    return target.toLowerCase().startsWith("0x")
+      ? { error: "Esa dirección no es válida: tiene que ser 0x seguido de 40 caracteres." }
+      : { error: `No tengo a "${alias}" en la agenda.`, contactos: listAliases(sender) };
+  }
   let amount: bigint;
   try {
     amount = parseTokenAmount(amountInput, token);

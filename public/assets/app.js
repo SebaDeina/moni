@@ -174,19 +174,26 @@
     }
   });
 
+  // ---------- Destinatario: un contacto o una dirección pegada ----------
+  const OTHER_ADDRESS = "__address";
+  function syncAddressField() {
+    const other = $("send-alias").value === OTHER_ADDRESS;
+    $("send-address").hidden = !other;
+    $("send-address").required = other;
+  }
+  $("send-alias").addEventListener("change", syncAddressField);
+
   // ---------- Agenda ----------
   function renderContacts(contacts) {
     for (const c of contacts) names.set(c.address.toLowerCase(), c.alias);
     const select = $("send-alias");
     const current = select.value;
     select.replaceChildren(
-      ...(contacts.length
-        ? contacts.map((c) => el("option", { value: c.alias, textContent: c.alias }))
-        : [el("option", { value: "", textContent: "Sin contactos" })]),
+      ...contacts.map((c) => el("option", { value: c.alias, textContent: c.alias })),
+      el("option", { value: OTHER_ADDRESS, textContent: "Otra dirección…" }),
     );
-    select.disabled = contacts.length === 0;
+    syncAddressField();
     if (contacts.some((c) => c.alias === current)) select.value = current;
-    $("send-btn").disabled = contacts.length === 0;
     $("contacts-count").textContent = contacts.length ? String(contacts.length) : "";
     $("contacts").replaceChildren(
       ...(contacts.length
@@ -326,12 +333,16 @@
     try {
       const r = await api("/transfers", {
         method: "POST",
-        body: JSON.stringify({ alias: $("send-alias").value, amount: $("send-amount").value, token: $("send-token").value }),
+        body: JSON.stringify({
+          alias: $("send-alias").value === OTHER_ADDRESS ? $("send-address").value.trim() : $("send-alias").value,
+          amount: $("send-amount").value,
+          token: $("send-token").value,
+        }),
       });
       notice.className = "notice";
       notice.replaceChildren(
         el("b", { textContent: "Te mandé un WhatsApp para confirmar." }),
-        el("span", { textContent: `Respondé SI con el código para mandarle ${avax(r.amount)} a ${r.alias}. Vence en 2 minutos.` }),
+        el("span", { textContent: `Tocá Confirmar (o respondé "sí") para mandarle ${avax(r.amount)} a ${r.alias}. Vence en 2 minutos.` }),
       );
       $("send-amount").value = "";
       loadActivity();

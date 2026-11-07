@@ -6,7 +6,7 @@ import { FUJI_CHAIN_ID, config } from "../config.js";
 import { addContact, listContacts, removeContact } from "../contacts.js";
 import { MAX_TRANSFER, formatAmount, listOperations, prepareTransfer } from "../operations.js";
 import { canonicalPhone, maskPhone } from "../phone.js";
-import { whatsapp } from "../whatsapp/index.js";
+import { askConfirmation, whatsapp } from "../whatsapp/index.js";
 import { createWallet, getWallet } from "../wallets.js";
 import { SESSION_TTL_MS, createLoginCode, createSession, deleteSession, sessionPhone, verifyLoginCode } from "./auth.js";
 
@@ -162,9 +162,9 @@ export function createApi(allowedSenders: Set<string>) {
     const prepared = await prepareTransfer(phone, body.alias ?? "", body.amount ?? "", body.token ?? "AVAX");
     if ("error" in prepared) return c.json({ error: prepared.error }, 400);
     try {
-      await whatsapp.sendText(
+      await askConfirmation(
         phone,
-        `Pediste desde la web mandarle ${prepared.amount} a ${prepared.alias}. Para confirmar respondé SI ${prepared.code} (vence en 2 minutos). Si no fuiste vos, no respondas.`,
+        `Pediste desde la web mandarle ${prepared.amount} a ${prepared.alias}. ¿Confirmás? (vence en 2 minutos). Si no fuiste vos, tocá Cancelar.`,
       );
     } catch (err) {
       console.error("[web] no pude mandar la confirmación por WhatsApp", err);
