@@ -5,3 +5,12 @@ data/
 *.db
 *.db-*
 .DS_Store
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/lib/
+contracts/broadcast/**/dry-run/
+contracts/broadcast/*/31337/
+contracts/broadcast/**/*.lock
+contracts/broadcast/**/run-[0-9]*.json

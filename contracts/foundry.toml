@@ -1,0 +1,17 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+
+[rpc_endpoints]
+fuji = "https://api.avax-test.network/ext/bc/C/rpc"
+
+# Verificación en Snowtrace (Routescan). La API de testnet no requiere clave real.
+[etherscan]
+fuji = { key = "verifyContract", url = "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan", chain = 43113 }

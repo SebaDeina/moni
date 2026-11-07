@@ -21,6 +21,7 @@ WhatsApp ─▶ Kapso (o Baileys) ─▶ webhook HTTPS ─▶ Node + Hono
 | `src/chain/` | Saldo, historial, salidas de la semana y envío de AVAX en Fuji. | Avalanche |
 | `src/confirmations.ts` | Códigos de confirmación: vencen a los 2 minutos y se consumen una sola vez. | Compartido |
 | `src/db/` | Esquema SQLite. | Compartido |
+| `contracts/` | Contrato `MoniVault` (Foundry): bóveda con agenda, tope semanal y verificación KUMPLY. | Avalanche |
 
 Cada parte solo habla con las otras a través de las funciones exportadas, así se puede trabajar en paralelo. Las tareas pendientes están marcadas con `TODO(whatsapp)` y `TODO(avalanche)`.
 
@@ -38,6 +39,29 @@ Cada parte solo habla con las otras a través de las funciones exportadas, así 
 - Solo se puede mandar a alias de la agenda precargada. Un alias ambiguo no alcanza para enviar.
 - Antes de firmar se chequean saldo y gas. Nonce y hash se guardan antes de transmitir, para que un reintento no mande dos veces.
 - Montos siempre en wei con `bigint`.
+
+## Contrato: MoniVault
+
+Bóveda on-chain de Moni (`contracts/src/MoniVault.sol`). Cada usuario guarda AVAX o tokens ERC-20 (USDC) y paga solo a contactos de su agenda, con un tope semanal que cumple el contrato, no el backend: aunque el agente o el servidor se equivoquen, no sale más de lo permitido.
+
+- `pay(token, to, amount, memo)`: paga a un contacto, dentro del tope, y emite `Paid` con el memo.
+- `setContact`, `setWeeklyLimit` (0 = sin tope), `setRequireVerifiedRecipients` (solo destinatarios con KYC de KUMPLY, nivel 2 o 3).
+- Las semanas empiezan el lunes 00:00 hora de Buenos Aires, igual que `weekly_outflow`.
+- `address(0)` representa AVAX.
+
+| Red | Dirección | Verificado |
+|---|---|---|
+| Fuji (43113) | [`0x12162801e91af889e4a147a4c3a9a255bf6629c2`](https://testnet.snowtrace.io/address/0x12162801e91af889e4a147a4c3a9a255bf6629c2) | ✅ Snowtrace |
+
+Usa el AttestationStore de KUMPLY en Fuji (`0xa3Bc5564A18e107807aF41fF2a5215Db050b22dD`). Las atestaciones de Fuji son de demo, sin verificación de identidad real.
+
+```bash
+cd contracts
+forge install foundry-rs/forge-std --no-git   # una sola vez
+forge test
+# Desplegar y verificar en Fuji (clave con AVAX de prueba):
+forge script script/DeployMoniVault.s.sol --rpc-url fuji --private-key $DEPLOYER_KEY --broadcast --verify
+```
 
 ## Correr en local
 

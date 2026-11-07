@@ -31,9 +31,7 @@ export function createApi(allowedSenders: Set<string>) {
     const wallet = chain.walletAddress();
     return c.json({
       network: { name: "Avalanche Fuji", chainId: FUJI_CHAIN_ID },
-      contract: config.CONTRACT_ADDRESS
-        ? { address: config.CONTRACT_ADDRESS, url: chain.explorerAddressUrl(config.CONTRACT_ADDRESS) }
-        : null,
+      contract: { address: config.MONI_VAULT_ADDRESS, url: chain.explorerAddressUrl(config.MONI_VAULT_ADDRESS) },
       wallet: wallet ? { address: wallet, url: chain.explorerAddressUrl(wallet) } : null,
       whatsapp: config.MONI_WHATSAPP_NUMBER
         ? { display: config.MONI_WHATSAPP_NUMBER, link: `https://wa.me/${config.MONI_WHATSAPP_NUMBER.replace(/\D/g, "")}` }

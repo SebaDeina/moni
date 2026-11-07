@@ -36,10 +36,14 @@ const Env = z.object({
   PUBLIC_DIR: z.string().default("./public"),
 
   // Avalanche Fuji
-  CONTRACT_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
   FUJI_RPC_URL: z.string().url().default("https://api.avax-test.network/ext/bc/C/rpc"),
   WALLET_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(),
   AVALANCHE_DATA_API_KEY: optional,
+  /** Contrato MoniVault desplegado en Fuji (contracts/). */
+  MONI_VAULT_ADDRESS: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{40}$/)
+    .default("0x12162801e91af889e4a147a4c3a9a255bf6629c2"),
 });
 
 // "CLAVE=" en un .env llega como "": la tratamos como no configurada.
