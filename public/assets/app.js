@@ -30,14 +30,16 @@
     return node;
   };
   const extLink = (url, text) => el("a", { href: url, target: "_blank", rel: "noopener", textContent: text });
-  /** "0.4999999998324848 AVAX" → "0,5 AVAX": como mucho 4 decimales, sin ceros de más. */
+  /** "0.4999999998324848 AVAX" → "0,5 AVAX", "12.5 USDC" → "12,50 USDC". */
   const avax = (s) => {
-    const n = Number(String(s).replace(" AVAX", ""));
+    const [num, unit = "AVAX"] = String(s).trim().split(/\s+/);
+    const n = Number(num);
     if (!Number.isFinite(n)) return s;
-    const shown = n > 0 && n < 0.0001 ? "< 0,0001" : n.toLocaleString("es-AR", { maximumFractionDigits: 4 });
-    return shown + " AVAX";
+    const opts = unit === "USDC" ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 4 };
+    const shown = unit !== "USDC" && n > 0 && n < 0.0001 ? "< 0,0001" : n.toLocaleString("es-AR", opts);
+    return shown + " " + unit;
   };
-  const isZero = (s) => Number(String(s).replace(" AVAX", "")) === 0;
+  const isZero = (s) => Number(String(s).trim().split(/\s+/)[0]) === 0;
   /** Nombres conocidos para direcciones: el contrato y la agenda. */
   const names = new Map();
   const nameOf = (address) => names.get(address.toLowerCase()) || short(address);
@@ -129,14 +131,17 @@
     $("who").hidden = false;
     $("who-phone").textContent = me.phone;
 
-    $("balance").textContent = me.balance ? avax(me.balance) : "—";
-    $("balance").title = me.balance || "";
-    $("balance-note").hidden = Boolean(me.balance);
+    const b = me.balances;
+    $("balance-usdc").textContent = b ? avax(b.USDC) : "—";
+    $("balance").textContent = b ? avax(b.AVAX) : "";
+    $("balance").title = b ? b.AVAX : "";
+    $("balance").hidden = !b;
+    $("balance-note").hidden = Boolean(b);
     $("balance-note").textContent = me.wallet
       ? "No pude leer el saldo de Avalanche. Probá de nuevo en un rato."
       : "Todavía no tenés wallet. Creala acá o pedíselo a Moni por WhatsApp: te regalamos un poco de AVAX de prueba para el gas.";
     $("create-wallet-box").hidden = Boolean(me.wallet);
-    $("max").textContent = avax(me.maxTransfer);
+    $("max").textContent = avax(me.maxTransfer.USDC) + " · " + avax(me.maxTransfer.AVAX);
     if (me.wallet) $("wallet").replaceChildren(addressWithCopy(me.wallet.address, me.wallet.url));
 
     const pub = await api("/public").catch(() => null);
@@ -321,7 +326,7 @@
     try {
       const r = await api("/transfers", {
         method: "POST",
-        body: JSON.stringify({ alias: $("send-alias").value, amount: $("send-amount").value }),
+        body: JSON.stringify({ alias: $("send-alias").value, amount: $("send-amount").value, token: $("send-token").value }),
       });
       notice.className = "notice";
       notice.replaceChildren(

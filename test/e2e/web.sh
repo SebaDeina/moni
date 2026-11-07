@@ -51,6 +51,9 @@ echo "    WhatsApp: $(last_wa)"
 CONFIRM=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
 BODY="{\"message\":{\"id\":\"wweb1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"SI $CONFIRM\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
 SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')
+echo "12b. Envío de 20 USDC a caro → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"20","token":"USDC"}')"
+echo "12c. Envío de 500 USDC (tope) → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"500","token":"USDC"}')"
+echo "12d. Moneda inválida → $(j -X POST $APP/api/transfers -d '{"alias":"caro","amount":"1","token":"ARS"}')"
 echo "13. Confirmo por WhatsApp desde 549… → $(curl -s -o /dev/null -w '%{http_code}' -X POST $APP/webhooks/kapso -H 'content-type: application/json' -H 'x-webhook-event: whatsapp.message.received' -H "x-webhook-signature: $SIG" --data-binary "$BODY")"
 sleep 1.5; echo "    WhatsApp: $(last_wa)"
 echo "14. Actividad → $(j "$APP/api/me/activity?period=week")"

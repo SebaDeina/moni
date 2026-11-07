@@ -4,7 +4,7 @@ import { formatEther } from "viem";
 import * as chain from "../chain/index.js";
 import { FUJI_CHAIN_ID, config } from "../config.js";
 import { addContact, listContacts, removeContact } from "../contacts.js";
-import { MAX_TRANSFER_WEI, listOperations, prepareTransfer } from "../operations.js";
+import { MAX_TRANSFER, formatAmount, listOperations, prepareTransfer } from "../operations.js";
 import { canonicalPhone, maskPhone } from "../phone.js";
 import { whatsapp } from "../whatsapp/index.js";
 import { createWallet, getWallet } from "../wallets.js";
@@ -93,12 +93,17 @@ export function createApi(allowedSenders: Set<string>) {
   api.get("/me", async (c) => {
     const phone = c.get("phone");
     const wallet = getWallet(phone);
-    const balance = wallet ? await orPending(() => chain.getBalance(wallet.address)) : null;
+    const balances = wallet
+      ? await orPending(async () => {
+          const [avax, usdc] = await Promise.all([chain.getBalance(wallet.address), chain.getTokenBalance(wallet.address, "USDC")]);
+          return { AVAX: formatAmount(avax, "AVAX"), USDC: formatAmount(usdc, "USDC") };
+        })
+      : null;
     return c.json({
       phone: maskPhone(phone),
       wallet: wallet ? { address: wallet.address, url: wallet.url } : null,
-      balance: balance === null ? null : `${formatEther(balance)} AVAX`,
-      maxTransfer: `${formatEther(MAX_TRANSFER_WEI)} AVAX`,
+      balances,
+      maxTransfer: { AVAX: formatAmount(MAX_TRANSFER.AVAX, "AVAX"), USDC: formatAmount(MAX_TRANSFER.USDC, "USDC") },
       contacts: listContacts(phone).map((c) => ({ ...c, url: chain.explorerAddressUrl(c.address) })),
     });
   });
@@ -153,8 +158,8 @@ export function createApi(allowedSenders: Set<string>) {
   // La web propone; la confirmación llega por WhatsApp con "SI <código>", igual que en el chat.
   api.post("/transfers", async (c) => {
     const phone = c.get("phone");
-    const body = (await c.req.json().catch(() => ({}))) as { alias?: string; amount?: string };
-    const prepared = await prepareTransfer(phone, body.alias ?? "", body.amount ?? "");
+    const body = (await c.req.json().catch(() => ({}))) as { alias?: string; amount?: string; token?: string };
+    const prepared = await prepareTransfer(phone, body.alias ?? "", body.amount ?? "", body.token ?? "AVAX");
     if ("error" in prepared) return c.json({ error: prepared.error }, 400);
     try {
       await whatsapp.sendText(

@@ -46,6 +46,9 @@ STICKER='{"message":{"id":"w12","type":"sticker","from":"5491100000000","kapso":
 echo "12. Sticker → $(post "$STICKER")"; last_sent
 BATCH="{\"type\":\"whatsapp.message.received\",\"batch\":true,\"data\":[$(text_msg w13 uno),$(text_msg w14 dos)]}"
 echo "13. Batch de 2 → $(post "$BATCH")"; sleep 1; last_sent
+echo "13b. 'mandale 12,5 dolares a juan' → $(post "$(text_msg w13b 'mandale 12,5 dolares a juan')")"; last_sent
+UCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
+echo "13c. Confirmo el envío en USDC → $(post "$(text_msg w13c "SI $UCODE")")"; last_sent
 echo "14. 'agendá a pedro' → $(post "$(text_msg w15 'agenda a pedro 0x4444444444444444444444444444444444444444')")"; last_sent
 CCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
 echo "15. Confirmo el contacto con SI $CCODE → $(post "$(text_msg w16 "SI $CCODE")")"; last_sent

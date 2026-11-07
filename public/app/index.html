@@ -31,6 +31,7 @@
   .stack { display: grid; gap: 20px; min-width: 0; }
   .balance { display: grid; gap: 10px; }
   .balance .amount { font: 500 clamp(34px, 5vw, 52px) / 1.05 var(--mono); letter-spacing: -0.03em; overflow-wrap: anywhere; }
+  .balance .amount.secondary { font-size: clamp(22px, 3vw, 28px); color: var(--grafito); }
   .balance .pending { font-size: 15px; color: var(--grafito); }
   .meta { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--linea); }
   .meta .row { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: 15px; }
@@ -120,7 +121,8 @@
       <div class="stack">
         <div class="card balance">
           <span class="label">Saldo</span>
-          <span class="amount" id="balance">—</span>
+          <span class="amount" id="balance-usdc">—</span>
+          <span class="amount secondary" id="balance">—</span>
           <span class="pending" id="balance-note" hidden></span>
           <div id="create-wallet-box" hidden style="display:grid;gap:10px;justify-items:start">
             <button class="btn primary" type="button" id="create-wallet">Crear mi wallet</button>
@@ -141,8 +143,14 @@
               <label class="field">A quién
                 <select id="send-alias" required></select>
               </label>
-              <label class="field">Cuánto (AVAX)
-                <input id="send-amount" class="mono" inputmode="decimal" placeholder="0,5" required>
+              <label class="field">Cuánto
+                <span style="display:flex;gap:8px">
+                  <input id="send-amount" class="mono" inputmode="decimal" placeholder="5" required style="min-width:0">
+                  <select id="send-token" aria-label="Moneda" style="width:auto">
+                    <option value="USDC">USDC</option>
+                    <option value="AVAX">AVAX</option>
+                  </select>
+                </span>
               </label>
             </div>
             <button class="btn primary" type="submit" id="send-btn">Pedir confirmación por WhatsApp</button>

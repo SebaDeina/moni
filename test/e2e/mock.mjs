@@ -22,6 +22,7 @@ function rpc({ id, method, params }) {
     case "eth_chainId": return ok("0xa869");
     case "eth_getBalance": return ok("0xde0b6b3a7640000"); // 1 AVAX
     case "eth_estimateGas": return ok("0x5208");
+    case "eth_call": return ok("0x" + (100_000_000).toString(16).padStart(64, "0")); // balanceOf: 100 USDC
     case "eth_maxPriorityFeePerGas": return ok("0x3b9aca00");
     case "eth_gasPrice": return ok("0x5d21dba00");
     case "eth_getTransactionCount": return ok("0x" + rawTxs.length.toString(16));
@@ -54,7 +55,8 @@ function claudeReply(body) {
   const tool = (name, input) => block([{ type: "thinking", thinking: "", signature: "sig" }, { type: "tool_use", id: "toolu_1", name, input }], "tool_use");
   if (user.includes("wallet")) return tool("create_wallet", {});
   if (user.includes("agenda")) return tool("propose_add_contact", { alias: "pedro", address: "0x4444444444444444444444444444444444444444" });
-  if (user.includes("mandale")) return tool("propose_native_transfer", { alias: user.includes("pedro") ? "pedro" : "juan", amountAvax: "0.1" });
+  if (user.includes("dolares")) return tool("propose_transfer", { alias: "juan", amount: "12.5", token: "USDC" });
+  if (user.includes("mandale")) return tool("propose_transfer", { alias: user.includes("pedro") ? "pedro" : "juan", amount: "0.1", token: "AVAX" });
   if (user.includes("saldo")) return tool("get_balance", {});
   return block([{ type: "text", text: `Eco: ${last.content}` }], "end_turn");
 }

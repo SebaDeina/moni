@@ -108,7 +108,9 @@ Cada número tiene su propia wallet en Fuji, custodiada por Moni (`src/wallets.t
 - Se crea desde WhatsApp ("crear wallet") o con el botón *Crear mi wallet* de la web. Una sola por número.
 - La clave privada se genera en el servidor y se guarda cifrada (AES-256-GCM) con `MONI_WALLET_MASTER_KEY`, que vive solo en el VPS. El número va como dato autenticado del cifrado.
 - La wallet de `WALLET_PRIVATE_KEY` es la **tesorería**: al crear una wallet le manda `WELCOME_AVAX` (0,05 por defecto) para el gas.
-- Saldo, movimientos, gastos de la semana y envíos usan la wallet de quien escribe. "¿Cuál es mi dirección?" la devuelve para compartirla.
+- Monedas: **AVAX** y **USDC** (el USDC de Circle en Fuji, `0x5425890298aed601595a70AB815c96711a31Bc65`, 6 decimales). "Dólares" en el chat es USDC. El gas siempre se paga en AVAX. Topes por envío: 10 AVAX y 100 USDC.
+- USDC de prueba: [faucet.circle.com](https://faucet.circle.com), red *Avalanche Fuji*, con la dirección de la wallet.
+- Saldo, movimientos, gastos de la semana y envíos usan la wallet de quien escribe. El historial de la red muestra movimientos en AVAX; los envíos en USDC hechos con Moni aparecen como operaciones. "¿Cuál es mi dirección?" la devuelve para compartirla.
 
 ## Agente (Claude)
 

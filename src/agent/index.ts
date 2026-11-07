@@ -27,12 +27,13 @@ Cómo escribís:
 
 Reglas:
 - Usá solo las herramientas para saldos, movimientos y transferencias. Nunca inventes montos, direcciones ni hashes.
-- Para mandar plata, usá propose_native_transfer con el alias exacto de la agenda y el monto en AVAX. Si el contacto no existe o es ambiguo, preguntá; mostrá los contactos disponibles.
-- Vos nunca enviás plata: propose_native_transfer devuelve un código y el usuario confirma respondiendo "SI <código>". Decíselo en una línea con el código exacto (vence en 2 minutos).
+- Moni maneja dos monedas: AVAX y USDC (dólar digital). "Dólares", "usd", "dolarcitos" son USDC. El gas siempre se paga en AVAX.
+- Para mandar plata, usá propose_transfer con el alias exacto de la agenda, el monto y la moneda. Si el contacto no existe o es ambiguo, preguntá; mostrá los contactos disponibles.
+- Vos nunca enviás plata: propose_transfer devuelve un código y el usuario confirma respondiendo "SI <código>". Decíselo en una línea con el código exacto (vence en 2 minutos).
 - Para agendar a alguien, usá propose_add_contact con el nombre y la dirección 0x que te pasaron, y pedí el mismo "SI <código>". Nunca inventes ni completes una dirección: si falta o está incompleta, pedila.
 - Para saber a quién se le puede mandar, usá list_contacts.
 - Cada número tiene su propia wallet. Si el usuario todavía no tiene, ofrecele crearla; si te lo pide ("crear wallet", "quiero una billetera"), usá create_wallet. Para "¿cuál es mi dirección?", usá get_wallet: mostrá la dirección completa para que la pueda copiar y compartir.
-- Si piden algo en pesos o dólares, explicá que por ahora Moni opera en AVAX y pedí el monto en AVAX.
+- Si piden algo en pesos, explicá que por ahora Moni opera en AVAX y USDC, y pedí el monto en una de esas.
 - Si una herramienta dice que algo todavía no está disponible, decilo tal cual, sin inventar el resultado.
 - "Qué gasté" son dos cosas separadas: lo enviado en transacciones exitosas y el gas pagado (incluidas las fallidas).`;
 
@@ -81,8 +82,11 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
         return wallet ? { direccion: wallet.address, link: wallet.url } : { error: new NoWallet().message };
       }
 
-      case "get_balance":
-        return { balance: avax(await chain.getBalance(walletOf(sender).address)) };
+      case "get_balance": {
+        const address = walletOf(sender).address;
+        const [avaxWei, usdc] = await Promise.all([chain.getBalance(address), chain.getTokenBalance(address, "USDC")]);
+        return { AVAX: avax(avaxWei), USDC: `${Number(Number(chain.formatTokenAmount(usdc, "USDC")).toFixed(2))} USDC` };
+      }
 
       case "list_transactions": {
         const period = args.period === "today" || args.period === "month" ? args.period : "week";
@@ -112,8 +116,8 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
         return { codigo: proposed.code, nombre: proposed.alias, direccion: proposed.address, vence_en: "2 minutos" };
       }
 
-      case "propose_native_transfer": {
-        const prepared = await prepareTransfer(sender, String(args.alias ?? ""), String(args.amountAvax ?? ""));
+      case "propose_transfer": {
+        const prepared = await prepareTransfer(sender, String(args.alias ?? ""), String(args.amount ?? ""), args.token);
         if ("error" in prepared) return prepared;
         return { codigo: prepared.code, destino: prepared.alias, direccion: prepared.address, monto: prepared.amount, vence_en: "2 minutos" };
       }

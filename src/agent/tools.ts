@@ -20,7 +20,7 @@ export const tools: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "get_balance",
-    description: "Saldo de AVAX de la wallet del usuario en Fuji.",
+    description: "Saldo de la wallet del usuario en Fuji: AVAX y USDC.",
     strict: true,
     input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
   },
@@ -64,17 +64,18 @@ export const tools: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
-    name: "propose_native_transfer",
+    name: "propose_transfer",
     description:
-      "Prepara una transferencia de AVAX a un contacto de la agenda. No firma: devuelve un código que el usuario debe responder con 'SI <código>'.",
+      "Prepara una transferencia de AVAX o USDC a un contacto de la agenda. No firma: devuelve un código que el usuario debe responder con 'SI <código>'.",
     strict: true,
     input_schema: {
       type: "object",
       properties: {
         alias: { type: "string", description: "Alias exacto de la agenda." },
-        amountAvax: { type: "string", description: "Monto en AVAX como texto decimal, por ejemplo '0.25'." },
+        amount: { type: "string", description: "Monto como texto decimal, por ejemplo '0.25' o '10'." },
+        token: { type: "string", enum: ["AVAX", "USDC"], description: "Moneda. USDC es el dólar digital." },
       },
-      required: ["alias", "amountAvax"],
+      required: ["alias", "amount", "token"],
       additionalProperties: false,
     },
   },

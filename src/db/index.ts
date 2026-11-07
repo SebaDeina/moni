@@ -95,6 +95,13 @@ db.exec(`
   );
 `);
 
+// Migraciones de columnas nuevas sobre tablas que ya existen en producción.
+const hasColumn = (table: string, column: string) =>
+  (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column);
+if (!hasColumn("operations", "token")) {
+  db.exec("ALTER TABLE operations ADD COLUMN token TEXT NOT NULL DEFAULT 'AVAX'");
+}
+
 /** Guarda el mensaje. Devuelve false si ya lo habíamos recibido (webhook repetido). */
 export function saveIncomingMessage(m: {
   id: string;

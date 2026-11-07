@@ -10,6 +10,10 @@
 import {
   createPublicClient,
   createWalletClient,
+  encodeFunctionData,
+  formatUnits,
+  parseAbi,
+  parseUnits,
   formatEther,
   getAddress,
   http,
@@ -245,6 +249,17 @@ export async function sendNativeTransfer(args: {
 }): Promise<`0x${string}`> {
   if (!isAddress(args.to)) throw new Error(`Dirección inválida: ${args.to}`);
   if (args.amountWei <= 0n) throw new Error("El monto tiene que ser mayor a cero");
+  return signAndSend({ account: args.account, to: args.to, value: args.amountWei, onPrepared: args.onPrepared });
+}
+
+/** Firma localmente, avisa nonce y hash por `onPrepared` y recién después transmite. */
+async function signAndSend(args: {
+  account: PrivateKeyAccount;
+  to: `0x${string}`;
+  value?: bigint;
+  data?: `0x${string}`;
+  onPrepared: (p: { nonce: number; hash: `0x${string}` }) => void;
+}): Promise<`0x${string}`> {
   await assertFuji();
 
   const signer = args.account;
@@ -253,7 +268,8 @@ export async function sendNativeTransfer(args: {
   const nonce = await publicClient.getTransactionCount({ address: signer.address, blockTag: "pending" });
   const request = await walletClient.prepareTransactionRequest({
     to: getAddress(args.to),
-    value: args.amountWei,
+    value: args.value ?? 0n,
+    data: args.data,
     nonce,
   });
   if (request.chainId !== FUJI_CHAIN_ID) throw new Error(`chainId inesperado: ${request.chainId}`);
@@ -270,6 +286,69 @@ export async function sendNativeTransfer(args: {
     if (!/already known/i.test(String(err))) throw err;
   }
   return hash;
+}
+
+// ---------------------------------------------------------------------------
+// Tokens: AVAX nativo y USDC de Circle en Fuji (ERC-20, 6 decimales). El gas siempre se paga en AVAX.
+
+export type Token = "AVAX" | "USDC";
+export const TOKENS: Record<Token, { decimals: number; address: Address | null }> = {
+  AVAX: { decimals: 18, address: null },
+  USDC: { decimals: 6, address: "0x5425890298aed601595a70AB815c96711a31Bc65" },
+};
+export const isToken = (t: unknown): t is Token => t === "AVAX" || t === "USDC";
+
+const erc20 = parseAbi([
+  "function balanceOf(address owner) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+]);
+
+/** Monto en unidades mínimas del token ("12,5" USDC → 12500000). Lanza si no es un monto válido. */
+export function parseTokenAmount(amount: string, token: Token): bigint {
+  const clean = amount.trim().replace(",", ".");
+  const { decimals } = TOKENS[token];
+  if (!new RegExp(`^\\d+(\\.\\d{1,${decimals}})?$`).test(clean)) throw new Error(`Monto inválido: ${amount}`);
+  return parseUnits(clean, decimals);
+}
+
+export const formatTokenAmount = (units: bigint, token: Token) => formatUnits(units, TOKENS[token].decimals);
+
+export async function getTokenBalance(address: Address, token: Token): Promise<bigint> {
+  const tokenAddress = TOKENS[token].address;
+  if (!tokenAddress) return getBalance(address);
+  return publicClient.readContract({ address: tokenAddress, abi: erc20, functionName: "balanceOf", args: [address] });
+}
+
+/** Alcanza el saldo del token, y el AVAX para el gas. */
+export async function canAffordToken(from: Address, token: Token, amount: bigint, to: Address): Promise<boolean> {
+  const tokenAddress = TOKENS[token].address;
+  if (!tokenAddress) return canAfford(from, amount, to);
+  if (amount <= 0n) return false;
+  if ((await getTokenBalance(from, token)) < amount) return false;
+  const [gas, fees, avax] = await Promise.all([
+    publicClient.estimateContractGas({ account: from, address: tokenAddress, abi: erc20, functionName: "transfer", args: [to, amount] }),
+    publicClient.estimateFeesPerGas(),
+    getBalance(from),
+  ]);
+  return avax >= gas * fees.maxFeePerGas;
+}
+
+/** Envía AVAX o un token. Mismas garantías que sendNativeTransfer (hash guardado antes de transmitir). */
+export async function sendTransfer(args: {
+  account: PrivateKeyAccount;
+  token: Token;
+  to: `0x${string}`;
+  amount: bigint;
+  onPrepared: (p: { nonce: number; hash: `0x${string}` }) => void;
+}): Promise<`0x${string}`> {
+  const tokenAddress = TOKENS[args.token].address;
+  if (!tokenAddress) {
+    return sendNativeTransfer({ account: args.account, to: args.to, amountWei: args.amount, onPrepared: args.onPrepared });
+  }
+  if (!isAddress(args.to)) throw new Error(`Dirección inválida: ${args.to}`);
+  if (args.amount <= 0n) throw new Error("El monto tiene que ser mayor a cero");
+  const data = encodeFunctionData({ abi: erc20, functionName: "transfer", args: [getAddress(args.to), args.amount] });
+  return signAndSend({ account: args.account, to: tokenAddress, data, onPrepared: args.onPrepared });
 }
 
 /** Espera a que la transacción entre en un bloque. Devuelve si fue exitosa. */
