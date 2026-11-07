@@ -26,15 +26,17 @@
   .link-btn { background: none; border: 0; padding: 0; font: inherit; color: var(--azul-texto); cursor: pointer; text-decoration: underline; }
 
   /* Panel */
-  .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
   .stack { display: grid; gap: 20px; min-width: 0; }
   .balance { display: grid; gap: 10px; }
-  .balance .amount { font: 500 clamp(36px, 6vw, 54px) / 1 var(--mono); letter-spacing: -0.03em; }
+  .balance .amount { font: 500 clamp(34px, 5vw, 52px) / 1.05 var(--mono); letter-spacing: -0.03em; overflow-wrap: anywhere; }
   .balance .pending { font-size: 15px; color: var(--grafito); }
   .meta { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--linea); }
-  .meta .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 15px; }
+  .meta .row { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: 15px; }
+  .meta .row > span:last-child { min-width: 0; text-align: right; margin-left: auto; }
   .meta .row span:first-child { color: var(--grafito); }
-  .addr { display: inline-flex; align-items: center; gap: 8px; font: 14px var(--mono); }
+  .addr { display: inline-flex; align-items: center; gap: 8px; font: 14px var(--mono); flex-wrap: wrap; justify-content: flex-end; }
   .copy { font: 500 12px var(--mono); border: 1px solid var(--linea); background: var(--papel); color: var(--tinta); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
 
   .send form, .add-contact { display: grid; gap: 14px; }
@@ -50,9 +52,10 @@
   .list { display: grid; }
   .item { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding-block: 14px; border-top: 1px solid var(--linea); align-items: center; }
   .item:first-child { border-top: 0; padding-top: 4px; }
-  .item .what { font-weight: 500; overflow-wrap: anywhere; }
+  .item .what { font-weight: 500; overflow-wrap: anywhere; min-width: 0; }
   .item .when { font: 13px var(--mono); color: var(--grafito); }
-  .item .amt { font: 500 15px var(--mono); text-align: right; }
+  .item .amt { font: 500 15px var(--mono); text-align: right; white-space: nowrap; }
+  select:disabled { color: var(--grafito); }
   .item .side { display: grid; justify-items: end; gap: 6px; }
   .empty { color: var(--grafito); font-size: 15px; padding-block: 8px; }
   .card h2 { font-size: 20px; letter-spacing: -0.02em; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }

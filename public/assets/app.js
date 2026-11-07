@@ -30,7 +30,17 @@
     return node;
   };
   const extLink = (url, text) => el("a", { href: url, target: "_blank", rel: "noopener", textContent: text });
-  const avax = (s) => s.replace(" AVAX", "").replace(".", ",") + " AVAX";
+  /** "0.4999999998324848 AVAX" → "0,5 AVAX": como mucho 4 decimales, sin ceros de más. */
+  const avax = (s) => {
+    const n = Number(String(s).replace(" AVAX", ""));
+    if (!Number.isFinite(n)) return s;
+    const shown = n > 0 && n < 0.0001 ? "< 0,0001" : n.toLocaleString("es-AR", { maximumFractionDigits: 4 });
+    return shown + " AVAX";
+  };
+  const isZero = (s) => Number(String(s).replace(" AVAX", "")) === 0;
+  /** Nombres conocidos para direcciones: el contrato y la agenda. */
+  const names = new Map();
+  const nameOf = (address) => names.get(address.toLowerCase()) || short(address);
   const when = (ms) =>
     new Date(ms).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -120,12 +130,16 @@
     $("who-phone").textContent = me.phone;
 
     $("balance").textContent = me.balance ? avax(me.balance) : "—";
+    $("balance").title = me.balance || "";
     $("balance-note").hidden = Boolean(me.balance);
     $("max").textContent = avax(me.maxTransfer);
     if (me.wallet) $("wallet").replaceChildren(addressWithCopy(me.wallet.address, me.wallet.url));
 
     const pub = await api("/public").catch(() => null);
-    if (pub && pub.contract) $("contract").replaceChildren(addressWithCopy(pub.contract.address, pub.contract.url));
+    if (pub && pub.contract) {
+      $("contract").replaceChildren(addressWithCopy(pub.contract.address, pub.contract.url));
+      names.set(pub.contract.address.toLowerCase(), "MoniVault (contrato)");
+    }
 
     renderContacts(me.contacts);
 
@@ -136,9 +150,15 @@
 
   // ---------- Agenda ----------
   function renderContacts(contacts) {
+    for (const c of contacts) names.set(c.address.toLowerCase(), c.alias);
     const select = $("send-alias");
     const current = select.value;
-    select.replaceChildren(...contacts.map((c) => el("option", { value: c.alias, textContent: c.alias })));
+    select.replaceChildren(
+      ...(contacts.length
+        ? contacts.map((c) => el("option", { value: c.alias, textContent: c.alias }))
+        : [el("option", { value: "", textContent: "Sin contactos" })]),
+    );
+    select.disabled = contacts.length === 0;
     if (contacts.some((c) => c.alias === current)) select.value = current;
     $("send-btn").disabled = contacts.length === 0;
     $("contacts-count").textContent = contacts.length ? String(contacts.length) : "";
@@ -229,15 +249,28 @@
         ),
       });
     }
+    // Un envío de Moni ya aparece como operación: no lo repetimos como transacción de la red.
+    const known = new Set(data.operations.map((op) => op.txUrl).filter(Boolean));
     for (const tx of data.transactions || []) {
+      if (known.has(tx.url)) continue;
+      const sign = isZero(tx.amount) ? "" : tx.direction === "in" ? "+" : "−";
       rows.push({
         at: tx.timestamp,
         node: el(
           "div",
           { className: "item" },
-          el("span", { className: "what", textContent: (tx.direction === "in" ? "Recibiste de " : "Mandaste a ") + short(tx.counterparty) }),
-          el("span", { className: "side" }, el("span", { className: "amt", textContent: (tx.direction === "in" ? "+" : "−") + avax(tx.amount) })),
-          el("span", { className: "when", textContent: when(tx.timestamp) + (tx.success ? "" : " · falló") }),
+          el("span", {
+            className: "what",
+            textContent:
+              isZero(tx.amount) && tx.direction === "out"
+                ? "Operación con " + nameOf(tx.counterparty)
+                : (tx.direction === "in" ? "Recibiste de " : "Mandaste a ") + nameOf(tx.counterparty),
+          }),
+          el("span", { className: "side" }, el("span", { className: "amt", textContent: sign + avax(tx.amount) })),
+          el("span", {
+            className: "when",
+            textContent: when(tx.timestamp) + (tx.success ? "" : " · falló") + (tx.direction === "out" && !isZero(tx.gas) ? " · gas " + avax(tx.gas) : ""),
+          }),
           el("span", { className: "side" }, extLink(tx.url, "Ver ↗")),
         ),
       });

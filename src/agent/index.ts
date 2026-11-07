@@ -43,7 +43,11 @@ function saveHistory(sender: string, turns: Message[]) {
   histories.set(sender, { messages: turns.slice(-HISTORY_TURNS * 2), updatedAt: Date.now() });
 }
 
-const avax = (wei: bigint) => `${formatEther(wei)} AVAX`;
+/** Para mostrar: como mucho 4 decimales ("0.4999999998" → "0.5 AVAX"). Lo exacto queda en el explorer. */
+const avax = (wei: bigint) => {
+  const n = Number(formatEther(wei));
+  return `${n > 0 && n < 0.0001 ? "< 0.0001" : Number(n.toFixed(4))} AVAX`;
+};
 
 async function runTool(sender: string, name: string, args: Record<string, unknown>): Promise<unknown> {
   try {
