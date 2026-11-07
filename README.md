@@ -10,6 +10,7 @@ Billetera en WhatsApp. Le escribís o le mandás un audio, y te dice tu saldo, q
 WhatsApp ─▶ Kapso (o Baileys) ─▶ webhook HTTPS ─▶ Node + Hono
                                                   ├─ agent/     Claude (Haiku 5.5) con 4 herramientas cerradas
                                                   ├─ chain/     viem + Avalanche Data API (Fuji, 43113)
+                                                  │             └─ gasless.ts  smart accounts + paymaster de 0xGasless
                                                   ├─ confirmations.ts  "SI <código>", fuera del modelo
                                                   └─ db/        SQLite: mensajes, agenda, operaciones
 ```
@@ -18,7 +19,7 @@ WhatsApp ─▶ Kapso (o Baileys) ─▶ webhook HTTPS ─▶ Node + Hono
 |---|---|---|
 | `src/whatsapp/` | Recibe y manda mensajes. `kapso.ts` y `baileys.ts` implementan la misma interfaz (`types.ts`). | WhatsApp + LLM |
 | `src/agent/` | Loop del LLM, herramientas y transcripción de audios. | WhatsApp + LLM |
-| `src/chain/` | Saldo, historial, salidas de la semana y envío de AVAX en Fuji. | Avalanche |
+| `src/chain/` | Saldo, historial, salidas de la semana y envíos sin gas (0xGasless + MoniVault) en Fuji. | Avalanche |
 | `src/confirmations.ts` | Códigos de confirmación: vencen a los 2 minutos y se consumen una sola vez. | Compartido |
 | `src/db/` | Esquema SQLite. | Compartido |
 | `contracts/` | Contrato `MoniVault` (Foundry): bóveda con agenda, tope semanal y verificación KUMPLY. | Avalanche |
@@ -37,7 +38,8 @@ Cada parte solo habla con las otras a través de las funciones exportadas, así 
 - El modelo nunca firma. Proponer una transferencia genera un código; el usuario responde `SI <código>` y el backend la ejecuta.
 - El código queda atado al remitente y a la operación, vence a los 2 minutos y se consume una sola vez.
 - Solo se puede mandar a alias de la agenda precargada. Un alias ambiguo no alcanza para enviar.
-- Antes de firmar se chequean saldo y gas. Nonce y hash se guardan antes de transmitir, para que un reintento no mande dos veces.
+- Antes de proponer se chequea el saldo (el gas lo cubre Moni). El hash de la userOp se guarda apenas el bundler la acepta, y la operación pasa de `proposed` a `confirmed` en un solo UPDATE, así un reintento no manda dos veces.
+- El pago pasa por `MoniVault.pay`: la agenda y el tope semanal los aplica el contrato.
 - Montos siempre en wei con `bigint`.
 
 ## Contrato: MoniVault
@@ -86,6 +88,21 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 
 Un mismo usuario es el mismo número en WhatsApp y en la web: los celulares argentinos se guardan sin el 9 (`src/phone.ts`).
 
+## Gas sin costo para el usuario (0xGasless)
+
+El usuario nunca necesita AVAX para el gas (`src/chain/gasless.ts`):
+
+- Cada wallet opera con una smart account de 0xGasless (`@0xgasless/smart-account-sdk`, EntryPoint v0.6) con los contratos de Fuji: factory `0xF0b3f5146c2725e36d78F5029bc560eDfc67ADe0` y módulo ECDSA `0xcfb0BA514aa398085D63eC70cfEa6EC7f1094E8F`. La firma la clave custodiada por Moni.
+- Un envío es **una sola userOp** con las llamadas a MoniVault: para AVAX `depositNative(monto)`; para USDC `approve` + `deposit(USDC, monto)`; después `setContact(destino)` (solo la primera vez) y `pay(token, destino, monto, "Moni")`. Es atómica: si el contrato rechaza el pago, el depósito también se revierte.
+- Con `OXGASLESS_API_KEY`, el paymaster de 0xGasless (modo `SPONSORED`) paga el gas y el bundler la manda a la red. La primera userOp además despliega la smart account.
+- Sin la clave (respaldo, `SPONSOR_GAS=true`): la smart account paga su propio gas y la tesorería se lo recarga antes de cada envío. Para el usuario es igual: nunca paga gas.
+- Los envíos de una smart account se ven en el explorador como transacciones internas. El historial junta las nativas y las internas y, con el evento `Paid` de MoniVault, muestra a la persona del otro lado. Los avisos de depósito también leen `Paid`.
+
+Variables: `OXGASLESS_API_KEY` (la clave del paymaster de Fuji), y opcionales `OXGASLESS_BUNDLER_URL` y `OXGASLESS_PAYMASTER_URL`. Pruebas contra Fuji (`scripts/gasless-smoke.ts`):
+
+- `--self-paid`: el mismo envío de Moni pero sin paymaster (la smart account paga su gas). Prueba bundler, despliegue de la cuenta, pago por MoniVault y lectura de la actividad. Corrida del 7/11: [despliegue + depósito + `setContact` + `pay` en una userOp](https://testnet.snowtrace.io/tx/0x5ad4f48dc7efd9ecf529b2f2a0275707c87d5f21fda307afd7dbc16ade469324), desde la smart account [`0xf26D…97C3`](https://testnet.snowtrace.io/address/0xf26D273ce87d1cC117299B02c830b0d22a2397C3).
+- Sin flag: userOp patrocinada por el paymaster. Necesita `OXGASLESS_API_KEY`.
+
 ## Agenda
 
 Cada usuario tiene su agenda (tabla `contacts`, por número). Además está la agenda compartida de `CONTACTS` en el `.env`, que ven todos y no se puede borrar desde la app.
@@ -107,9 +124,10 @@ Cada número tiene su propia wallet en Fuji, custodiada por Moni (`src/wallets.t
 
 - Se crea desde WhatsApp ("crear wallet") o con el botón *Crear mi wallet* de la web. Una sola por número.
 - La clave privada se genera en el servidor y se guarda cifrada (AES-256-GCM) con `MONI_WALLET_MASTER_KEY`, que vive solo en el VPS. El número va como dato autenticado del cifrado.
-- La wallet de `WALLET_PRIVATE_KEY` es la **tesorería**: al crear una wallet le manda `WELCOME_AVAX` (0,05 por defecto) para el gas.
+- Esa clave es la dueña de una **smart account de 0xGasless** (ERC-4337). La smart account es la dirección del usuario: ahí está su saldo, y desde ahí envía sin pagar gas.
+- La wallet de `WALLET_PRIVATE_KEY` es la **tesorería**: al crear una wallet le manda `WELCOME_AVAX` (0,05 por defecto) a la smart account, como saldo de bienvenida.
+- Las wallets creadas antes de 0xGasless se actualizan solas al arrancar: se les calcula la smart account y la EOA le pasa su saldo (USDC y AVAX, una sola vez).
 - Monedas: **AVAX** y **USDC** (el USDC de Circle en Fuji, `0x5425890298aed601595a70AB815c96711a31Bc65`, 6 decimales). "Dólares" en el chat es USDC. El gas siempre se paga en AVAX. Topes por envío: 10 AVAX y 100 USDC.
-- **Gas patrocinado** (`SPONSOR_GAS=true`, por defecto): el usuario no paga el gas. Antes de cada envío, si a su wallet no le alcanza el AVAX para el gas, la tesorería le manda la diferencia (con 10% de margen) y espera la confirmación. Para mandar USDC no hace falta tener AVAX. La tesorería firma de a una transacción por vez para no repetir nonces.
 - USDC de prueba: [faucet.circle.com](https://faucet.circle.com), red *Avalanche Fuji*, con la dirección de la wallet.
 - Saldo, movimientos, gastos de la semana y envíos usan la wallet de quien escribe. El historial de la red muestra movimientos en AVAX; los envíos en USDC hechos con Moni aparecen como operaciones. "¿Cuál es mi dirección?" la devuelve para compartirla.
 

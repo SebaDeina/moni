@@ -11,7 +11,14 @@
     "e2e:web": "bash test/e2e/web.sh"
   },
   "type": "module",
+  "imports": {
+    "#0xgasless": {
+      "types": "./src/types/0xgasless-sdk.d.ts",
+      "default": "@0xgasless/smart-account-sdk"
+    }
+  },
   "dependencies": {
+    "@0xgasless/smart-account-sdk": "0.0.15",
     "@anthropic-ai/sdk": "^1.6.0",
     "@hono/node-server": "^2.1.6",
     "hono": "^4.13.17",
@@ -26,5 +33,10 @@
   "private": true,
   "engines": {
     "node": ">=22.13"
+  },
+  "overrides": {
+    "@0xgasless/smart-account-sdk": {
+      "typescript": "$typescript"
+    }
   }
 }

@@ -139,7 +139,7 @@
     $("balance-note").hidden = Boolean(b);
     $("balance-note").textContent = me.wallet
       ? "No pude leer el saldo de Avalanche. Probá de nuevo en un rato."
-      : "Todavía no tenés wallet. Creala acá o pedíselo a Moni por WhatsApp: te regalamos un poco de AVAX de prueba para el gas.";
+      : "Todavía no tenés wallet. Creala acá o pedíselo a Moni por WhatsApp: te regalamos un poco de AVAX de prueba y el gas lo paga Moni.";
     $("create-wallet-box").hidden = Boolean(me.wallet);
     $("max").textContent = avax(me.maxTransfer.USDC) + " · " + avax(me.maxTransfer.AVAX);
     if (me.wallet) $("wallet").replaceChildren(addressWithCopy(me.wallet.address, me.wallet.url));

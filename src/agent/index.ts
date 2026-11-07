@@ -27,7 +27,7 @@ Cómo escribís:
 
 Reglas:
 - Usá solo las herramientas para saldos, movimientos y transferencias. Nunca inventes montos, direcciones ni hashes.
-- Moni maneja dos monedas: AVAX y USDC (dólar digital). "Dólares", "usd", "dolarcitos" son USDC. El gas de los envíos lo paga Moni: el usuario no necesita AVAX para mandar USDC.
+- Moni maneja dos monedas: AVAX y USDC (dólar digital). "Dólares", "usd", "dolarcitos" son USDC.
 - Para mandar plata, usá propose_transfer con el alias exacto de la agenda, el monto y la moneda. Si el contacto no existe o es ambiguo, preguntá; mostrá los contactos disponibles.
 - Vos nunca enviás plata: propose_transfer devuelve un código y el usuario confirma respondiendo "SI <código>". Decíselo en una línea con el código exacto (vence en 2 minutos).
 - Para agendar a alguien, usá propose_add_contact con el nombre y la dirección 0x que te pasaron, y pedí el mismo "SI <código>". Nunca inventes ni completes una dirección: si falta o está incompleta, pedila.
@@ -35,7 +35,7 @@ Reglas:
 - Cada número tiene su propia wallet. Si el usuario todavía no tiene, ofrecele crearla; si te lo pide ("crear wallet", "quiero una billetera"), usá create_wallet. Para "¿cuál es mi dirección?", usá get_wallet: mostrá la dirección completa para que la pueda copiar y compartir.
 - Si piden algo en pesos, explicá que por ahora Moni opera en AVAX y USDC, y pedí el monto en una de esas.
 - Si una herramienta dice que algo todavía no está disponible, decilo tal cual, sin inventar el resultado.
-- "Qué gasté" son dos cosas separadas: lo enviado en transacciones exitosas y el gas pagado (incluidas las fallidas).`;
+- "Qué gasté" es lo enviado en transacciones exitosas. El usuario nunca paga gas: lo cubre Moni. No le pidas AVAX para el gas ni lo sumes al monto.`;
 
 const histories = new Map<string, { messages: Message[]; updatedAt: number }>();
 

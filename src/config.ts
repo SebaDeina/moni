@@ -41,9 +41,16 @@ const Env = z.object({
   WALLET_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(),
   /** Clave (32 bytes en hex) con la que se cifran las claves privadas de las wallets de los usuarios. */
   MONI_WALLET_MASTER_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
-  /** AVAX que la tesorería le manda a cada wallet nueva para el gas. */
+  /** AVAX de bienvenida que la tesorería le manda a cada wallet nueva. */
   WELCOME_AVAX: z.string().regex(/^\d+(\.\d{1,18})?$/).default("0.05"),
-  /** La tesorería paga el gas de los envíos de los usuarios ("true" o "false"). */
+  /** 0xGasless: smart account por usuario. Con la clave, el paymaster paga el gas de los envíos. */
+  OXGASLESS_API_KEY: optional,
+  OXGASLESS_BUNDLER_URL: z.string().url().default("https://bundler.0xgasless.com/43113"),
+  OXGASLESS_PAYMASTER_URL: z.string().url().default("https://paymaster.0xgasless.com/v1/43113/rpc"),
+  /**
+   * Sin clave de 0xGasless: la tesorería le recarga AVAX a la smart account para que pague su gas
+   * ("true" o "false"). Así el usuario tampoco paga gas mientras no haya paymaster.
+   */
   SPONSOR_GAS: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
   /** Cada cuánto se revisan los bloques nuevos para avisar depósitos. 0 = no vigilar. */
   DEPOSIT_POLL_MS: z.coerce.number().int().min(0).default(10_000),

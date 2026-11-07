@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import { saveIncomingMessage } from "./db/index.js";
 import { startDepositWatcher } from "./deposits.js";
 import { canonicalPhone } from "./phone.js";
+import { upgradeWallets } from "./wallets.js";
 import { createApi } from "./web/api.js";
 import { whatsapp, type IncomingMessage } from "./whatsapp/index.js";
 
@@ -67,6 +68,9 @@ async function onMessage(msg: IncomingMessage) {
 }
 
 await whatsapp.start(app, onMessage);
+
+// Wallets de antes de 0xGasless: les calcula la smart account y les pasa el saldo, sin frenar el arranque.
+upgradeWallets().catch((err) => console.error("[wallets] falló la actualización a smart accounts", err));
 
 app.route("/api", createApi(allowedSenders));
 

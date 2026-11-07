@@ -28,9 +28,13 @@ function setCursor(block: bigint) {
   );
 }
 
-function walletOwners(): Map<string, string> {
-  const rows = db.prepare("SELECT phone, address FROM wallets").all() as { phone: string; address: string }[];
-  return new Map(rows.map((r) => [r.address.toLowerCase(), r.phone]));
+/** Dirección de cada usuario (su smart account) → número. Y las EOA dueñas, que no cuentan como remitentes. */
+function walletOwners(): { byAddress: Map<string, string>; ownerEoas: Set<string> } {
+  const rows = db.prepare("SELECT phone, address, sa_address FROM wallets").all() as { phone: string; address: string; sa_address: string | null }[];
+  return {
+    byAddress: new Map(rows.map((r) => [(r.sa_address ?? r.address).toLowerCase(), r.phone])),
+    ownerEoas: new Set(rows.map((r) => r.address.toLowerCase())),
+  };
 }
 
 function senderName(phone: string, from: Address): string {
@@ -40,7 +44,7 @@ function senderName(phone: string, from: Address): string {
 
 /** Revisa los bloques nuevos una vez. Devuelve cuántos avisos mandó. */
 export async function checkDeposits(notify: Notify): Promise<number> {
-  const owners = walletOwners();
+  const { byAddress: owners, ownerEoas } = walletOwners();
   const latest = await latestBlock();
   const cursor = getCursor();
   // Primera vez: arrancamos desde ahora, sin avisar depósitos viejos.
@@ -57,7 +61,8 @@ export async function checkDeposits(notify: Notify): Promise<number> {
   let sent = 0;
   for (const dep of incoming) {
     const phone = owners.get(dep.to.toLowerCase());
-    if (!phone || dep.from.toLowerCase() === treasury) continue; // el saldo de bienvenida ya se avisa al crear la wallet
+    // Sin aviso: el saldo de bienvenida y las recargas de gas (tesorería), y la migración desde la wallet vieja (su EOA).
+    if (!phone || dep.from.toLowerCase() === treasury || ownerEoas.has(dep.from.toLowerCase())) continue;
     if (!claim(dep, phone)) continue;
     await notify(phone, `💸 Te llegaron ${formatAmount(dep.amount, dep.token)} de ${senderName(phone, dep.from)}.\n${explorerTxUrl(dep.hash)}`).catch(
       (err) => console.error("[depósitos] no pude avisar", phone.slice(-4), String(err).slice(0, 200)),

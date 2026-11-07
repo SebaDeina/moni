@@ -1,4 +1,5 @@
 // Servidor falso: Kapso (envío + media), Claude (Messages API) y STT de xAI.
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { keccak256 } from "viem";
 
@@ -15,6 +16,13 @@ function readBody(req) {
 
 const claudeRequests = [];
 const rawTxs = [];
+const userOps = [];
+const sponsored = [];
+
+const FACTORY = "0xf0b3f5146c2725e36d78f5029bc560edfc67ade0";
+const word = (hex) => hex.replace(/^0x/, "").padStart(64, "0");
+// Dirección contrafactual falsa pero fija por dueño: hash de los datos del llamado al factory.
+const fakeAccount = (data) => "0x" + createHash("sha256").update(data).digest("hex").slice(0, 40);
 const TREASURY = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"; // la clave de prueba de la tesorería
 const sentHashes = new Set();
 // Depósitos inyectados por la prueba (POST /_inject): cada uno va en un bloque nuevo.
@@ -44,7 +52,14 @@ function rpc({ id, method, params }) {
     // Tesorería: 1 AVAX. Usuarios: 0,1 AVAX, así mandar 0,1 AVAX obliga a recargar el gas.
     case "eth_getBalance": return ok(String(params[0]).toLowerCase() === TREASURY ? "0xde0b6b3a7640000" : "0x16345785d8a0000");
     case "eth_estimateGas": return ok("0x5208");
-    case "eth_call": return ok("0x" + (100_000_000).toString(16).padStart(64, "0")); // balanceOf: 100 USDC
+    case "eth_getCode": return ok("0x");
+    // Factory de smart accounts → dirección; balanceOf de USDC → 100 USDC; cualquier otra lectura (getNonce, isContact) → 0 / false.
+    case "eth_call": {
+      const to = params[0].to?.toLowerCase();
+      if (to === FACTORY) return ok("0x" + word(fakeAccount(params[0].data)));
+      if (to === USDC) return ok("0x" + word((100_000_000).toString(16)));
+      return ok("0x" + word("0"));
+    }
     case "eth_maxPriorityFeePerGas": return ok("0x3b9aca00");
     case "eth_gasPrice": return ok("0x5d21dba00");
     case "eth_getTransactionCount": return ok("0x" + rawTxs.length.toString(16));
@@ -53,6 +68,8 @@ function rpc({ id, method, params }) {
       return ok(blockObj(params[0] === "latest" || params[0] === "pending" ? head : Number(BigInt(params[0])), params[1] === true));
     case "eth_getLogs": {
       const f = params[0];
+      const addrs = [].concat(f.address ?? []).map((a) => a.toLowerCase());
+      if (addrs.length && !addrs.includes(USDC)) return ok([]); // solo inyectamos Transfer de USDC
       const from = Number(BigInt(f.fromBlock)), to = Number(BigInt(f.toBlock));
       return ok(deposits.filter((d) => d.token === "USDC" && d.block >= from && d.block <= to).map((d) => ({
         address: USDC, topics: [TRANSFER_TOPIC, pad(d.from), pad(d.to)], data: pad(BigInt(d.value).toString(16)),
@@ -77,6 +94,25 @@ function rpc({ id, method, params }) {
       return ok(h);
     }
     default: return { jsonrpc: "2.0", id, error: { code: -32601, message: "mock: " + method } };
+  }
+}
+
+// Bundler y paymaster de 0xGasless falsos (ERC-4337, EntryPoint v0.6).
+function bundler({ id, method, params }) {
+  const ok = (result) => ({ jsonrpc: "2.0", id, result });
+  switch (method) {
+    case "skandha_getGasPrice": return ok({ maxPriorityFeePerGas: "0x59682f00", maxFeePerGas: "0x59682f14" });
+    case "eth_estimateUserOperationGas": return ok({ preVerificationGas: "0xc350", verificationGasLimit: "0x61a80", callGasLimit: "0x30d40" });
+    case "eth_sendUserOperation": {
+      userOps.push({ sender: params[0].sender, callData: params[0].callData, paymasterAndData: params[0].paymasterAndData });
+      return ok("0x" + word((userOps.length).toString(16)).replace(/^0{2}/, "ee"));
+    }
+    case "eth_getUserOperationReceipt":
+      return ok({ userOpHash: params[0], entryPoint: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789", paymaster: "0x" + "99".repeat(20), actualGasCost: "0x0", actualGasUsed: "0x0", success: "true", reason: "", logs: [], receipt: { transactionHash: "0x" + "cd".repeat(32), blockNumber: 16 } });
+    case "skandha_userOperationStatus":
+    case "eth_getUserOperationStatus":
+      return ok({ state: "CONFIRMED", transactionHash: "0x" + "cd".repeat(32) });
+    default: return { jsonrpc: "2.0", id, error: { code: -32601, message: "mock bundler: " + method } };
   }
 }
 
@@ -108,7 +144,15 @@ createServer(async (req, res) => {
   const body = await readBody(req);
   const json = (code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
 
-  if (req.url === "/_sent") return json(200, { sent, sttCalls, claudeRequests, rawTxs: rawTxs.length });
+  if (req.url === "/_sent") return json(200, { sent, sttCalls, claudeRequests, rawTxs: rawTxs.length, userOps, sponsored: sponsored.length });
+  if (req.method === "POST" && req.url === "/bundler") return json(200, bundler(JSON.parse(body.toString())));
+  if (req.method === "POST" && req.url.startsWith("/paymaster/")) {
+    const { id, method } = JSON.parse(body.toString());
+    if (req.url !== "/paymaster/pm-key") return json(500, { jsonrpc: "2.0", id, error: { code: -32603, message: "Internal error" } });
+    if (method !== "pm_sponsorUserOperation") return json(200, { jsonrpc: "2.0", id, error: { code: -32601, message: "Method not found" } });
+    sponsored.push(id);
+    return json(200, { jsonrpc: "2.0", id, result: { paymasterAndData: "0x" + "99".repeat(20) + "00".repeat(32), preVerificationGas: "0xc350", verificationGasLimit: "0x61a80", callGasLimit: "0x30d40" } });
+  }
   if (req.method === "POST" && req.url === "/_inject") {
     const d = JSON.parse(body.toString());
     head += 1;
