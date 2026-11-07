@@ -179,7 +179,7 @@
       <div class="row"><span>Red</span><span id="net-name">Avalanche Fuji</span></div>
       <div class="row"><span>Chain ID</span><span id="net-id">43113</span></div>
       <div class="row"><span>Contrato</span><span id="net-contract">Publicándose</span></div>
-      <div class="row"><span>Wallet de la demo</span><span id="net-wallet">Configurándose</span></div>
+      <div class="row"><span>Tesorería (fondea wallets nuevas)</span><span id="net-wallet">Configurándose</span></div>
     </div>
   </div>
 </section>
@@ -238,7 +238,7 @@
     const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
     const link = (url, text) => { const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = text; return a; };
     if (d.contract) document.getElementById("net-contract").replaceChildren(link(d.contract.url, short(d.contract.address) + " ↗"));
-    if (d.wallet) document.getElementById("net-wallet").replaceChildren(link(d.wallet.url, short(d.wallet.address) + " ↗"));
+    if (d.treasury) document.getElementById("net-wallet").replaceChildren(link(d.treasury.url, short(d.treasury.address) + " ↗"));
     if (d.whatsapp) {
       const cta = document.getElementById("cta-wa");
       cta.href = d.whatsapp.link; cta.target = "_blank"; cta.rel = "noopener";

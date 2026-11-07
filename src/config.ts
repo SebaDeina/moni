@@ -37,7 +37,12 @@ const Env = z.object({
 
   // Avalanche Fuji
   FUJI_RPC_URL: z.string().url().default("https://api.avax-test.network/ext/bc/C/rpc"),
+  /** Tesorería: fondea las wallets nuevas de los usuarios. */
   WALLET_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(),
+  /** Clave (32 bytes en hex) con la que se cifran las claves privadas de las wallets de los usuarios. */
+  MONI_WALLET_MASTER_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
+  /** AVAX que la tesorería le manda a cada wallet nueva para el gas. */
+  WELCOME_AVAX: z.string().regex(/^\d+(\.\d{1,18})?$/).default("0.05"),
   AVALANCHE_DATA_API_KEY: optional,
   /** Contrato MoniVault desplegado en Fuji (contracts/). */
   MONI_VAULT_ADDRESS: z

@@ -63,20 +63,19 @@ if (avalancheFuji.id !== FUJI_CHAIN_ID) throw new Error("viem no apunta a Fuji")
 const transport = http(config.FUJI_RPC_URL, { timeout: 15_000, retryCount: 2 });
 const publicClient = createPublicClient({ chain: avalancheFuji, transport });
 
-let account: PrivateKeyAccount | undefined;
-function wallet(): PrivateKeyAccount {
+// La wallet de WALLET_PRIVATE_KEY es la tesorería: fondea con un poco de AVAX las wallets nuevas
+// de los usuarios para que puedan pagar el gas. Cada usuario opera con su propia wallet (src/wallets.ts).
+let treasuryAccount: PrivateKeyAccount | undefined;
+export function treasury(): PrivateKeyAccount {
   if (!config.WALLET_PRIVATE_KEY) throw new NotImplemented("WALLET_PRIVATE_KEY");
-  account ??= privateKeyToAccount(config.WALLET_PRIVATE_KEY as `0x${string}`);
-  return account;
+  treasuryAccount ??= privateKeyToAccount(config.WALLET_PRIVATE_KEY as `0x${string}`);
+  return treasuryAccount;
 }
 
-/** Dirección de la wallet de la demo, para mostrar. null si todavía no hay clave configurada. */
-export function walletAddress(): Address | null {
-  return config.WALLET_PRIVATE_KEY ? wallet().address : null;
+/** Dirección de la tesorería, para mostrar. null si todavía no hay clave configurada. */
+export function treasuryAddress(): Address | null {
+  return config.WALLET_PRIVATE_KEY ? treasury().address : null;
 }
-
-/** Dirección de la wallet para operar: si no hay clave, lanza NotImplemented. */
-const signerAddress = (): Address => wallet().address;
 
 /**
  * El RPC configurado tiene que ser Fuji. Si alguien apunta FUJI_RPC_URL a mainnet,
@@ -192,20 +191,20 @@ function toChainTx(tx: z.infer<typeof NativeTx>, me: Address): ChainTx {
 // ---------------------------------------------------------------------------
 // API del módulo
 
-/** Saldo de AVAX de la wallet de la demo. */
-export async function getBalance(): Promise<bigint> {
-  return publicClient.getBalance({ address: signerAddress() });
+/** Saldo de AVAX de una wallet. */
+export async function getBalance(address: Address): Promise<bigint> {
+  return publicClient.getBalance({ address });
 }
 
-/** Historial de la wallet, paginado por el Data API. */
-export async function listTransactions(period: Period): Promise<ChainTx[]> {
-  return listTransactionsOf(signerAddress(), periodStart(period));
+/** Historial de una wallet, paginado por el Data API. */
+export async function listTransactions(address: Address, period: Period): Promise<ChainTx[]> {
+  return listTransactionsOf(address, periodStart(period));
 }
 
-/** Salidas y gas desde el lunes, hora de Buenos Aires. */
-export async function weeklyOutflow(): Promise<WeeklyOutflow> {
+/** Salidas y gas de una wallet desde el lunes, hora de Buenos Aires. */
+export async function weeklyOutflow(address: Address): Promise<WeeklyOutflow> {
   const since = periodStart("week");
-  const txs = await listTransactionsOf(signerAddress(), since);
+  const txs = await listTransactionsOf(address, since);
   let sentWei = 0n;
   let gasWei = 0n;
   for (const tx of txs) {
@@ -217,20 +216,20 @@ export async function weeklyOutflow(): Promise<WeeklyOutflow> {
 }
 
 /** Costo máximo de gas de una transferencia: límite estimado por el precio máximo que aceptaríamos pagar. */
-async function maxGasCost(amountWei: bigint, to: Address): Promise<bigint> {
+async function maxGasCost(from: Address, amountWei: bigint, to: Address): Promise<bigint> {
   const [gas, fees] = await Promise.all([
-    publicClient.estimateGas({ account: signerAddress(), to, value: amountWei }),
+    publicClient.estimateGas({ account: from, to, value: amountWei }),
     publicClient.estimateFeesPerGas(),
   ]);
   return gas * fees.maxFeePerGas;
 }
 
 /** Chequea que alcance el saldo para monto + gas antes de proponer o firmar. */
-export async function canAfford(amountWei: bigint, to: `0x${string}`): Promise<boolean> {
+export async function canAfford(from: Address, amountWei: bigint, to: `0x${string}`): Promise<boolean> {
   if (amountWei <= 0n) return false;
-  const balance = await getBalance();
+  const balance = await getBalance(from);
   if (balance < amountWei) return false; // ni siquiera alcanza el monto: no hace falta estimar gas
-  return balance >= amountWei + (await maxGasCost(amountWei, to));
+  return balance >= amountWei + (await maxGasCost(from, amountWei, to));
 }
 
 /**
@@ -238,6 +237,8 @@ export async function canAfford(amountWei: bigint, to: `0x${string}`): Promise<b
  * para que un timeout o un reintento no manden dos veces.
  */
 export async function sendNativeTransfer(args: {
+  /** Quién firma: la wallet del usuario, o la tesorería al fondear una wallet nueva. */
+  account: PrivateKeyAccount;
   to: `0x${string}`;
   amountWei: bigint;
   onPrepared: (p: { nonce: number; hash: `0x${string}` }) => void;
@@ -246,7 +247,7 @@ export async function sendNativeTransfer(args: {
   if (args.amountWei <= 0n) throw new Error("El monto tiene que ser mayor a cero");
   await assertFuji();
 
-  const signer = wallet();
+  const signer = args.account;
   const walletClient = createWalletClient({ account: signer, chain: avalancheFuji, transport });
 
   const nonce = await publicClient.getTransactionCount({ address: signer.address, blockTag: "pending" });

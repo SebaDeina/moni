@@ -10,6 +10,7 @@ node "$HERE/mock.mjs" > "${TMPDIR:-/tmp}/moni-e2e-mock.log" 2>&1 &
 MOCK_PID=$!
 ( cd "$REPO" && PORT=3917 DATABASE_PATH="${TMPDIR:-/tmp}/moni-e2e.db" KAPSO_WEBHOOK_SECRET=$SECRET KAPSO_API_KEY=test-key \
   KAPSO_PHONE_NUMBER_ID=999 KAPSO_API_BASE=$MOCK ANTHROPIC_API_KEY=claude-key ANTHROPIC_BASE_URL=$MOCK \
+  MONI_WALLET_MASTER_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff WALLET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d FUJI_RPC_URL=$MOCK/rpc \
   TRANSCRIBE_API_KEY=stt-key TRANSCRIBE_URL=$MOCK/v1/stt CONTACTS="juan=0x1111111111111111111111111111111111111111,maría=0x2222222222222222222222222222222222222222" \
   npx tsx src/index.ts > "${TMPDIR:-/tmp}/moni-e2e-app.log" 2>&1 ) &
 APP_PID=$!
@@ -28,12 +29,14 @@ echo "1. Firma inválida → $(post "$(text_msg w1 hola)" "" deadbeef)"
 echo "2. Evento que no es mensaje → $(post '{"message":{}}' whatsapp.message.sent)"
 echo "3. Texto 'hola' → $(post "$(text_msg w3 hola)")"; last_sent
 echo "4. Mismo webhook repetido → $(post "$(text_msg w3 hola)")"; last_sent
+echo "4b. 'crear wallet' → $(post "$(text_msg w4b 'quiero crear mi wallet')")"; last_sent
+echo "4c. 'crear wallet' otra vez → $(post "$(text_msg w4c 'crear wallet de nuevo')")"; last_sent
 echo "5. 'mandale a juan' → $(post "$(text_msg w5 'mandale 0.1 a juan')")"; last_sent
 CODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
 echo "6. Confirmo con SI $CODE → $(post "$(text_msg w6 "SI $CODE")")"; last_sent
 echo "7. Reuso el mismo código → $(post "$(text_msg w7 "si $CODE")")"; last_sent
 echo "8. 'mandale a pedro' (no está en la agenda) → $(post "$(text_msg w8 'mandale 0.1 a pedro')")"; last_sent
-echo "9. 'saldo' (chain sin implementar) → $(post "$(text_msg w9 'cuanto saldo tengo')")"; last_sent
+echo "9. 'saldo' → $(post "$(text_msg w9 'cuanto saldo tengo')")"; last_sent
 AUDIO_T='{"message":{"id":"w10","type":"audio","from":"5491100000000","audio":{"id":"m1"},"kapso":{"direction":"inbound","has_media":true,"transcript":{"text":"hola desde un audio"},"media_url":"http://localhost:3998/media/audio1"}},"phone_number_id":"999"}'
 echo "10. Audio con transcripción de Kapso → $(post "$AUDIO_T")"; last_sent
 AUDIO_N='{"message":{"id":"w11","type":"audio","from":"5491100000000","audio":{"id":"m2"},"kapso":{"direction":"inbound","has_media":true,"media_url":"http://localhost:3998/media/audio1","media_data":{"content_type":"audio/ogg"}}},"phone_number_id":"999"}'
@@ -48,6 +51,7 @@ CCODE=$(curl -s $MOCK/_sent | grep -o 'SI [0-9]\{6\}' | tail -1 | cut -d' ' -f2)
 echo "15. Confirmo el contacto con SI $CCODE → $(post "$(text_msg w16 "SI $CCODE")")"; last_sent
 echo "16. Reuso el código del contacto → $(post "$(text_msg w17 "SI $CCODE")")"; last_sent
 echo "17. Ahora 'mandale a pedro' → $(post "$(text_msg w18 'mandale 0.1 a pedro')")"; last_sent
+echo "    transacciones firmadas en el nodo falso: $(curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).rawTxs))') (fondeo + envíos confirmados)"
 echo "--- requests a Claude (modelo, beta, fallbacks, effort, roles)"
 curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const r=JSON.parse(d).claudeRequests;console.log(r.length+" requests; primera:",JSON.stringify(r[0]));console.log("con historial:",JSON.stringify(r.at(-1).roles))})'
 echo "--- operaciones en la base"

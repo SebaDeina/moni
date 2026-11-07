@@ -11,6 +11,7 @@ node "$HERE/mock.mjs" > "${TMPDIR:-/tmp}/moni-web-mock.log" 2>&1 &
 MOCK_PID=$!
 ( cd "$REPO" && PORT=3917 DATABASE_PATH="$DB" KAPSO_WEBHOOK_SECRET=$SECRET KAPSO_API_KEY=test-key \
   KAPSO_PHONE_NUMBER_ID=999 KAPSO_API_BASE=$MOCK ANTHROPIC_API_KEY=claude-key ANTHROPIC_BASE_URL=$MOCK \
+  MONI_WALLET_MASTER_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff WALLET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d FUJI_RPC_URL=$MOCK/rpc \
   ALLOWED_SENDERS=541100000000 MONI_WHATSAPP_NUMBER="+56 9 2040 3095" \
   CONTACTS="juan=0x1111111111111111111111111111111111111111,caro=0x2222222222222222222222222222222222222222" \
   npx tsx src/index.ts > "${TMPDIR:-/tmp}/moni-web-app.log" 2>&1 ) &
@@ -33,6 +34,9 @@ echo "6. Código incorrecto → $(j -X POST $APP/api/auth/verify -d '{"phone":"5
 VERIFY=$(printf '{"phone":"541100000000","code":"%s"}' "$LOGIN")
 echo "7. Código correcto → $(j -X POST $APP/api/auth/verify -d "$VERIFY")"
 echo "8. Reuso el código → $(j -X POST $APP/api/auth/verify -d "$VERIFY")"
+echo "8b. /api/me sin wallet → $(j $APP/api/me | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d);console.log("wallet:",m.wallet,"| saldo:",m.balance)})')"
+echo "8c. Creo la wallet → $(j -X POST $APP/api/wallet | cut -c1-230)"
+echo "8d. Creo otra vez → $(j -X POST $APP/api/wallet | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d);console.log("created:",m.created)})')"
 echo "9. /api/me → $(j $APP/api/me)"
 echo "9a. Agrego a lola → $(j -X POST $APP/api/contacts -d '{"alias":"Lola","address":"0x5555555555555555555555555555555555555555"}')"
 echo "9b. Agrego a lola otra vez → $(j -X POST $APP/api/contacts -d '{"alias":"lola","address":"0x5555555555555555555555555555555555555555"}')"

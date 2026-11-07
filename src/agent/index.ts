@@ -4,6 +4,7 @@ import * as chain from "../chain/index.js";
 import { consumeConfirmation, parseConfirmation } from "../confirmations.js";
 import { confirmContact, listContacts, proposeContact } from "../contacts.js";
 import { executeConfirmedOperation, prepareTransfer } from "../operations.js";
+import { NoWallet, createWallet, getWallet } from "../wallets.js";
 import { config } from "../config.js";
 import { MODEL, claude } from "./llm.js";
 import { tools } from "./tools.js";
@@ -26,6 +27,7 @@ Reglas:
 - Vos nunca enviás plata: propose_native_transfer devuelve un código y el usuario confirma respondiendo "SI <código>". Decíselo con el código exacto y aclaralo: vence en 2 minutos.
 - Para agendar a alguien, usá propose_add_contact con el nombre y la dirección 0x que te pasaron, y pedí el mismo "SI <código>". Nunca inventes ni completes una dirección: si falta o está incompleta, pedila.
 - Para saber a quién se le puede mandar, usá list_contacts.
+- Cada número tiene su propia wallet. Si el usuario todavía no tiene, ofrecele crearla; si te lo pide ("crear wallet", "quiero una billetera"), usá create_wallet. Para "¿cuál es mi dirección?", usá get_wallet: mostrá la dirección completa para que la pueda copiar y compartir.
 - Si piden algo en pesos o dólares, explicá que por ahora Moni opera en AVAX y pedí el monto en AVAX.
 - Si una herramienta dice que algo todavía no está disponible, decilo tal cual, sin inventar el resultado.
 - "Qué gasté" son dos cosas separadas: lo enviado en transacciones exitosas y el gas pagado (incluidas las fallidas).`;
@@ -49,15 +51,38 @@ const avax = (wei: bigint) => {
   return `${n > 0 && n < 0.0001 ? "< 0.0001" : Number(n.toFixed(4))} AVAX`;
 };
 
+/** La wallet del usuario para consultar; si no tiene, NoWallet (el modelo le sugiere crearla). */
+function walletOf(sender: string) {
+  const wallet = getWallet(sender);
+  if (!wallet) throw new NoWallet();
+  return wallet;
+}
+
 async function runTool(sender: string, name: string, args: Record<string, unknown>): Promise<unknown> {
   try {
     switch (name) {
+      case "create_wallet": {
+        const { wallet, created, funding } = await createWallet(sender);
+        return {
+          nueva: created,
+          direccion: wallet.address,
+          link: wallet.url,
+          saldo_inicial: funding && "amount" in funding ? `${funding.amount} (${funding.txUrl})` : undefined,
+          aviso: funding && "error" in funding ? funding.error : undefined,
+        };
+      }
+
+      case "get_wallet": {
+        const wallet = getWallet(sender);
+        return wallet ? { direccion: wallet.address, link: wallet.url } : { error: new NoWallet().message };
+      }
+
       case "get_balance":
-        return { balance: avax(await chain.getBalance()) };
+        return { balance: avax(await chain.getBalance(walletOf(sender).address)) };
 
       case "list_transactions": {
         const period = args.period === "today" || args.period === "month" ? args.period : "week";
-        const txs = await chain.listTransactions(period);
+        const txs = await chain.listTransactions(walletOf(sender).address, period);
         return txs.slice(0, 20).map((t) => ({
           direccion: t.direction === "in" ? "entrada" : "salida",
           monto: avax(t.valueWei),
@@ -70,7 +95,7 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
       }
 
       case "weekly_outflow": {
-        const w = await chain.weeklyOutflow();
+        const w = await chain.weeklyOutflow(walletOf(sender).address);
         return { enviado: avax(w.sentWei), gas: avax(w.gasWei), desde: new Date(w.since).toISOString() };
       }
 
@@ -93,6 +118,7 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
         return { error: `Herramienta desconocida: ${name}` };
     }
   } catch (err) {
+    if (err instanceof NoWallet) return { error: err.message };
     if (err instanceof chain.NotImplemented) return { error: "Esta función todavía no está disponible en Moni." };
     console.error(`[agente] falló ${name}`, err);
     return { error: "Hubo un error consultando la red. Probá de nuevo en un rato." };

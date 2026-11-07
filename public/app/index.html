@@ -121,7 +121,11 @@
         <div class="card balance">
           <span class="label">Saldo</span>
           <span class="amount" id="balance">—</span>
-          <span class="pending" id="balance-note" hidden>La conexión con Avalanche se está terminando: el saldo va a aparecer acá.</span>
+          <span class="pending" id="balance-note" hidden></span>
+          <div id="create-wallet-box" hidden style="display:grid;gap:10px;justify-items:start">
+            <button class="btn primary" type="button" id="create-wallet">Crear mi wallet</button>
+            <p class="error" id="wallet-error" role="alert"></p>
+          </div>
           <div class="meta">
             <div class="row"><span>Wallet</span><span id="wallet">Todavía sin configurar</span></div>
             <div class="row"><span>Red</span><span class="mono">Avalanche Fuji · 43113</span></div>

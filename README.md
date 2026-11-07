@@ -101,7 +101,14 @@ Mientras usemos el sandbox de Kapso, sumar a alguien son dos pasos:
 1. En Kapso → WhatsApp → Sandbox → *Sessions* → *Add session*: cargar su número y que mande el código de activación desde su WhatsApp.
 2. En el VPS, agregar su número a `ALLOWED_SENDERS` (sin "+", separado por coma) y reiniciar el contenedor.
 
-Todos los usuarios comparten la wallet de la demo (`WALLET_PRIVATE_KEY`).
+## Wallets
+
+Cada número tiene su propia wallet en Fuji, custodiada por Moni (`src/wallets.ts`):
+
+- Se crea desde WhatsApp ("crear wallet") o con el botón *Crear mi wallet* de la web. Una sola por número.
+- La clave privada se genera en el servidor y se guarda cifrada (AES-256-GCM) con `MONI_WALLET_MASTER_KEY`, que vive solo en el VPS. El número va como dato autenticado del cifrado.
+- La wallet de `WALLET_PRIVATE_KEY` es la **tesorería**: al crear una wallet le manda `WELCOME_AVAX` (0,05 por defecto) para el gas.
+- Saldo, movimientos, gastos de la semana y envíos usan la wallet de quien escribe. "¿Cuál es mi dirección?" la devuelve para compartirla.
 
 ## Agente (Claude)
 

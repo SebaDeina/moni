@@ -6,6 +6,19 @@ import type Anthropic from "@anthropic-ai/sdk";
  */
 export const tools: Anthropic.Beta.BetaTool[] = [
   {
+    name: "create_wallet",
+    description:
+      "Crea la wallet del usuario en Avalanche Fuji (una por número) y le manda un saldo inicial para el gas. Si ya tiene, devuelve la que tiene.",
+    strict: true,
+    input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+  },
+  {
+    name: "get_wallet",
+    description: "Dirección de la wallet del usuario, para que la comparta. Si no tiene, lo dice.",
+    strict: true,
+    input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+  },
+  {
     name: "get_balance",
     description: "Saldo de AVAX de la wallet del usuario en Fuji.",
     strict: true,

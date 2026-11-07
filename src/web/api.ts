@@ -7,6 +7,7 @@ import { addContact, listContacts, removeContact } from "../contacts.js";
 import { MAX_TRANSFER_WEI, listOperations, prepareTransfer } from "../operations.js";
 import { canonicalPhone, maskPhone } from "../phone.js";
 import { whatsapp } from "../whatsapp/index.js";
+import { createWallet, getWallet } from "../wallets.js";
 import { SESSION_TTL_MS, createLoginCode, createSession, deleteSession, sessionPhone, verifyLoginCode } from "./auth.js";
 
 const COOKIE = "moni_session";
@@ -28,11 +29,11 @@ export function createApi(allowedSenders: Set<string>) {
 
   // Datos públicos para la landing y la pantalla de login.
   api.get("/public", (c) => {
-    const wallet = chain.walletAddress();
+    const treasury = chain.treasuryAddress();
     return c.json({
       network: { name: "Avalanche Fuji", chainId: FUJI_CHAIN_ID },
       contract: { address: config.MONI_VAULT_ADDRESS, url: chain.explorerAddressUrl(config.MONI_VAULT_ADDRESS) },
-      wallet: wallet ? { address: wallet, url: chain.explorerAddressUrl(wallet) } : null,
+      treasury: treasury ? { address: treasury, url: chain.explorerAddressUrl(treasury) } : null,
       whatsapp: config.MONI_WHATSAPP_NUMBER
         ? { display: config.MONI_WHATSAPP_NUMBER, link: `https://wa.me/${config.MONI_WHATSAPP_NUMBER.replace(/\D/g, "")}` }
         : null,
@@ -86,15 +87,16 @@ export function createApi(allowedSenders: Set<string>) {
   api.use("/me", requireSession);
   api.use("/transfers", requireSession);
   api.use("/contacts", requireSession);
+  api.use("/wallet", requireSession);
   api.use("/contacts/*", requireSession);
 
   api.get("/me", async (c) => {
     const phone = c.get("phone");
-    const wallet = chain.walletAddress();
-    const balance = await orPending(() => chain.getBalance());
+    const wallet = getWallet(phone);
+    const balance = wallet ? await orPending(() => chain.getBalance(wallet.address)) : null;
     return c.json({
       phone: maskPhone(phone),
-      wallet: wallet ? { address: wallet, url: chain.explorerAddressUrl(wallet) } : null,
+      wallet: wallet ? { address: wallet.address, url: wallet.url } : null,
       balance: balance === null ? null : `${formatEther(balance)} AVAX`,
       maxTransfer: `${formatEther(MAX_TRANSFER_WEI)} AVAX`,
       contacts: listContacts(phone).map((c) => ({ ...c, url: chain.explorerAddressUrl(c.address) })),
@@ -103,7 +105,10 @@ export function createApi(allowedSenders: Set<string>) {
 
   api.get("/me/activity", async (c) => {
     const period = c.req.query("period");
-    const txs = await orPending(() => chain.listTransactions(period === "today" || period === "month" ? period : "week"));
+    const wallet = getWallet(c.get("phone"));
+    const txs = wallet
+      ? await orPending(() => chain.listTransactions(wallet.address, period === "today" || period === "month" ? period : "week"))
+      : null;
     return c.json({
       operations: listOperations(c.get("phone")),
       transactions:
@@ -117,6 +122,17 @@ export function createApi(allowedSenders: Set<string>) {
           url: chain.explorerTxUrl(t.hash),
         })) ?? null,
     });
+  });
+
+  // Crea la wallet del usuario (una por número) y la fondea con el saldo de bienvenida.
+  api.post("/wallet", async (c) => {
+    try {
+      const result = await createWallet(c.get("phone"));
+      return c.json({ ok: true, created: result.created, wallet: result.wallet, funding: result.funding });
+    } catch (err) {
+      if (err instanceof chain.NotImplemented) return c.json({ error: "Todavía no se pueden crear wallets: falta configurar Moni." }, 503);
+      throw err;
+    }
   });
 
   // Agenda propia. Los contactos compartidos (CONTACTS del .env) no se pueden borrar desde acá.

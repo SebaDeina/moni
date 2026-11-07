@@ -5,6 +5,7 @@ import { FUJI_CHAIN_ID } from "./config.js";
 import { createConfirmation } from "./confirmations.js";
 import { findContact, listAliases, type Contact } from "./contacts.js";
 import { db } from "./db/index.js";
+import { NoWallet, getWallet, signerFor } from "./wallets.js";
 
 /** Tope por transferencia. Es testnet, pero evita que un error de tipeo vacíe la wallet de la demo. */
 export const MAX_TRANSFER_WEI = parseEther("10");
@@ -19,6 +20,8 @@ export type PreparedTransfer =
  */
 export async function prepareTransfer(sender: string, alias: string, amountInput: string): Promise<PreparedTransfer> {
   const amountText = amountInput.trim().replace(",", ".");
+  const wallet = getWallet(sender);
+  if (!wallet) return { error: new NoWallet().message };
   const contact = findContact(sender, alias);
   if (!contact) return { error: `No tengo a "${alias}" en la agenda.`, contactos: listAliases(sender) };
   if (!/^\d+(\.\d{1,18})?$/.test(amountText)) return { error: "Monto inválido. Escribilo en AVAX, por ejemplo 0.5." };
@@ -26,7 +29,7 @@ export async function prepareTransfer(sender: string, alias: string, amountInput
   if (amountWei <= 0n) return { error: "El monto tiene que ser mayor a cero." };
   if (amountWei > MAX_TRANSFER_WEI) return { error: `El máximo por transferencia es ${formatEther(MAX_TRANSFER_WEI)} AVAX.` };
   try {
-    if (!(await canAfford(amountWei, contact.address))) return { error: "No alcanza el saldo para ese monto más el gas." };
+    if (!(await canAfford(wallet.address, amountWei, contact.address))) return { error: "No alcanza el saldo para ese monto más el gas." };
   } catch (err) {
     if (!(err instanceof NotImplemented)) throw err;
   }
@@ -93,6 +96,7 @@ export async function executeConfirmedOperation(sender: string, operationId: str
   let preparedHash: string | undefined;
   try {
     const hash = await sendNativeTransfer({
+      account: signerFor(sender),
       to: op.to_address,
       amountWei: amount,
       onPrepared: ({ nonce, hash }) => {
@@ -104,6 +108,7 @@ export async function executeConfirmedOperation(sender: string, operationId: str
     return `Listo ✅ Le mandé ${formatEther(amount)} AVAX a ${op.to_alias}.\n${explorerTxUrl(hash)}`;
   } catch (err) {
     setStatus("failed", { error: err instanceof Error ? err.message : String(err) });
+    if (err instanceof NoWallet) return err.message;
     if (err instanceof NotImplemented) {
       return "Confirmado, pero las transferencias todavía no están habilitadas en Moni. No se movió plata.";
     }

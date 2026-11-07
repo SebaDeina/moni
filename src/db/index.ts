@@ -42,6 +42,17 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- Una wallet por número. La clave privada va cifrada (AES-256-GCM con MONI_WALLET_MASTER_KEY).
+  CREATE TABLE IF NOT EXISTS wallets (
+    phone      TEXT PRIMARY KEY,
+    address    TEXT NOT NULL UNIQUE,
+    enc_key    TEXT NOT NULL,
+    iv         TEXT NOT NULL,
+    tag        TEXT NOT NULL,
+    fund_tx    TEXT,
+    created_at INTEGER NOT NULL
+  );
+
   -- Contactos pedidos por chat, pendientes de "SI <código>" (mismas reglas que las transferencias).
   CREATE TABLE IF NOT EXISTS contact_requests (
     id          TEXT PRIMARY KEY,

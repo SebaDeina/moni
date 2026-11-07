@@ -132,6 +132,10 @@
     $("balance").textContent = me.balance ? avax(me.balance) : "—";
     $("balance").title = me.balance || "";
     $("balance-note").hidden = Boolean(me.balance);
+    $("balance-note").textContent = me.wallet
+      ? "No pude leer el saldo de Avalanche. Probá de nuevo en un rato."
+      : "Todavía no tenés wallet. Creala acá o pedíselo a Moni por WhatsApp: te regalamos un poco de AVAX de prueba para el gas.";
+    $("create-wallet-box").hidden = Boolean(me.wallet);
     $("max").textContent = avax(me.maxTransfer);
     if (me.wallet) $("wallet").replaceChildren(addressWithCopy(me.wallet.address, me.wallet.url));
 
@@ -147,6 +151,23 @@
     clearInterval(pollTimer);
     pollTimer = setInterval(loadActivity, 5000);
   }
+
+  $("create-wallet").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = "Creando…";
+    $("wallet-error").textContent = "";
+    try {
+      const r = await api("/wallet", { method: "POST" });
+      if (r.funding && r.funding.error) $("wallet-error").textContent = r.funding.error;
+      await loadApp();
+    } catch (err) {
+      $("wallet-error").textContent = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Crear mi wallet";
+    }
+  });
 
   // ---------- Agenda ----------
   function renderContacts(contacts) {
