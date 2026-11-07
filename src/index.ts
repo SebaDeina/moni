@@ -36,6 +36,10 @@ async function onMessage(msg: IncomingMessage) {
     return;
   }
 
+  // Lo antes posible: el usuario ve el doble check azul y "escribiendo…" mientras pensamos.
+  const started = Date.now();
+  whatsapp.markReadAndTyping?.(msg).catch((err) => console.warn("[moni] no pude marcar como leído", String(err).slice(0, 160)));
+
   if (msg.kind === "other") {
     await whatsapp.sendText(msg.from, "Por ahora entiendo mensajes de texto y audios.");
     return;
@@ -58,6 +62,7 @@ async function onMessage(msg: IncomingMessage) {
     reply = "Tuve un problema procesando tu mensaje. Probá de nuevo en un ratito.";
   }
   await whatsapp.sendText(msg.from, reply);
+  console.log(`[tiempos] ${msg.kind} respondido en ${Date.now() - started} ms`);
 }
 
 await whatsapp.start(app, onMessage);

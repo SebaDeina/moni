@@ -119,6 +119,7 @@ export async function handleUserText(sender: string, text: string): Promise<stri
   };
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const llmStarted = Date.now();
     const response = await claude.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
@@ -132,6 +133,9 @@ export async function handleUserText(sender: string, text: string): Promise<stri
       ...(SUPPORTS_FALLBACK ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
     });
 
+    console.log(
+      `[tiempos] claude vuelta ${round + 1}: ${Date.now() - llmStarted} ms (${response.stop_reason}, entrada ${response.usage.input_tokens}, cache ${response.usage.cache_read_input_tokens ?? 0}, salida ${response.usage.output_tokens})`,
+    );
     if (response.stop_reason === "refusal") return finish("Con eso no te puedo ayudar.");
     if (response.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: response.content });
@@ -152,7 +156,9 @@ export async function handleUserText(sender: string, text: string): Promise<stri
     messages.push({ role: "assistant", content: response.content });
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     for (const call of toolUses) {
+      const toolStarted = Date.now();
       const result = await runTool(sender, call.name, (call.input ?? {}) as Record<string, unknown>);
+      console.log(`[tiempos] herramienta ${call.name}: ${Date.now() - toolStarted} ms`);
       const isError = typeof result === "object" && result !== null && "error" in result;
       results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result), is_error: isError });
     }

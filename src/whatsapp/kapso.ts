@@ -65,6 +65,18 @@ export function parseKapsoWebhook(body: unknown): IncomingMessage[] {
   return messages;
 }
 
+async function postMessage(body: Record<string, unknown>): Promise<void> {
+  if (!config.KAPSO_API_KEY || !config.KAPSO_PHONE_NUMBER_ID) {
+    throw new Error("Faltan KAPSO_API_KEY o KAPSO_PHONE_NUMBER_ID");
+  }
+  const res = await fetch(`${config.KAPSO_API_BASE}/meta/whatsapp/${GRAPH_VERSION}/${config.KAPSO_PHONE_NUMBER_ID}/messages`, {
+    method: "POST",
+    headers: { "X-API-Key": config.KAPSO_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Kapso respondió ${res.status}: ${await res.text()}`);
+}
+
 export const kapso: WhatsAppProvider = {
   name: "kapso",
 
@@ -98,21 +110,12 @@ export const kapso: WhatsAppProvider = {
   },
 
   async sendText(to, text) {
-    if (!config.KAPSO_API_KEY || !config.KAPSO_PHONE_NUMBER_ID) {
-      throw new Error("Faltan KAPSO_API_KEY o KAPSO_PHONE_NUMBER_ID");
-    }
-    const res = await fetch(`${config.KAPSO_API_BASE}/meta/whatsapp/${GRAPH_VERSION}/${config.KAPSO_PHONE_NUMBER_ID}/messages`, {
-      method: "POST",
-      headers: { "X-API-Key": config.KAPSO_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "text",
-        text: { body: text },
-      }),
-    });
-    if (!res.ok) throw new Error(`Kapso respondió ${res.status} al enviar: ${await res.text()}`);
+    await postMessage({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { body: text } });
+  },
+
+  // https://docs.kapso.ai/docs/whatsapp/send-messages/mark-read
+  async markReadAndTyping(msg) {
+    await postMessage({ messaging_product: "whatsapp", status: "read", message_id: msg.id, typing_indicator: { type: "text" } });
   },
 
   async downloadAudio(msg) {
