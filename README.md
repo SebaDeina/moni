@@ -56,7 +56,7 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 1. En Kapso, el webhook del número apunta a `https://moni.nimbodata.com/webhooks/kapso`, con el evento `whatsapp.message.received` y un `secret_key` igual a `KAPSO_WEBHOOK_SECRET`.
 2. Sin `KAPSO_WEBHOOK_SECRET` el webhook responde 503, y con firma inválida responde 401.
 3. Los audios usan la transcripción que manda Kapso. Si no viene, Moni baja el audio y lo transcribe con xAI (`grok-voice-transcribe-2.0`).
-4. Para probar en local sin claves reales hay un mock de Kapso, del LLM y del STT; ver el historial de este README o pedirlo.
+4. Para probar en local sin claves reales: `npm run e2e`. Levanta un mock de Kapso, del LLM y del STT y recorre 13 casos (firma, duplicados, transferencia con código, audios, stickers, batch).
 
 ## Producción
 
