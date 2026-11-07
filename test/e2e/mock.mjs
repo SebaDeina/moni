@@ -14,6 +14,24 @@ function readBody(req) {
 
 const claudeRequests = [];
 const rawTxs = [];
+// Depósitos inyectados por la prueba (POST /_inject): cada uno va en un bloque nuevo.
+let head = 0x10;
+const deposits = [];
+const hex = (n) => "0x" + BigInt(n).toString(16);
+const pad = (h) => "0x" + h.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const USDC = "0x5425890298aed601595a70ab815c96711a31bc65";
+function blockObj(n, full) {
+  const txs = deposits.filter((d) => d.block === n && d.token === "AVAX").map((d) => ({
+    hash: d.hash, from: d.from, to: d.to, value: hex(d.value), blockNumber: hex(n), blockHash: "0x" + "11".repeat(32),
+    gas: "0x5208", gasPrice: "0x5d21dba00", input: "0x", nonce: "0x0", transactionIndex: "0x0", type: "0x0",
+    v: "0x1b", r: "0x" + "01".repeat(32), s: "0x" + "02".repeat(32), chainId: "0xa869",
+  }));
+  return { number: hex(n), hash: "0x" + "11".repeat(32), parentHash: "0x" + "22".repeat(32), timestamp: "0x6729c4e0",
+    gasLimit: "0x1c9c380", gasUsed: "0x0", baseFeePerGas: "0x5d21dba00", transactions: full ? txs : txs.map((t) => t.hash), miner: "0x" + "00".repeat(20),
+    nonce: "0x0000000000000000", difficulty: "0x0", extraData: "0x", logsBloom: "0x" + "00".repeat(256), sha3Uncles: "0x" + "33".repeat(32),
+    size: "0x0", stateRoot: "0x" + "44".repeat(32), receiptsRoot: "0x" + "55".repeat(32), transactionsRoot: "0x" + "66".repeat(32), uncles: [] };
+}
 
 // Nodo de Fuji falso: lo justo para saldo, estimación de gas y envío de transacciones firmadas.
 function rpc({ id, method, params }) {
@@ -26,12 +44,23 @@ function rpc({ id, method, params }) {
     case "eth_maxPriorityFeePerGas": return ok("0x3b9aca00");
     case "eth_gasPrice": return ok("0x5d21dba00");
     case "eth_getTransactionCount": return ok("0x" + rawTxs.length.toString(16));
-    case "eth_blockNumber": return ok("0x10");
+    case "eth_blockNumber": return ok(hex(head));
     case "eth_getBlockByNumber":
-      return ok({ number: "0x10", hash: "0x" + "11".repeat(32), parentHash: "0x" + "22".repeat(32), timestamp: "0x6729c4e0",
-        gasLimit: "0x1c9c380", gasUsed: "0x0", baseFeePerGas: "0x5d21dba00", transactions: [], miner: "0x" + "00".repeat(20),
-        nonce: "0x0000000000000000", difficulty: "0x0", extraData: "0x", logsBloom: "0x" + "00".repeat(256), sha3Uncles: "0x" + "33".repeat(32),
-        size: "0x0", stateRoot: "0x" + "44".repeat(32), receiptsRoot: "0x" + "55".repeat(32), transactionsRoot: "0x" + "66".repeat(32), uncles: [] });
+      return ok(blockObj(params[0] === "latest" || params[0] === "pending" ? head : Number(BigInt(params[0])), params[1] === true));
+    case "eth_getLogs": {
+      const f = params[0];
+      const from = Number(BigInt(f.fromBlock)), to = Number(BigInt(f.toBlock));
+      return ok(deposits.filter((d) => d.token === "USDC" && d.block >= from && d.block <= to).map((d) => ({
+        address: USDC, topics: [TRANSFER_TOPIC, pad(d.from), pad(d.to)], data: pad(BigInt(d.value).toString(16)),
+        blockNumber: hex(d.block), blockHash: "0x" + "11".repeat(32), transactionHash: d.hash, transactionIndex: "0x0", logIndex: "0x0", removed: false,
+      })));
+    }
+    case "eth_getTransactionReceipt": {
+      const d = deposits.find((x) => x.hash === params[0]);
+      return ok(d ? { transactionHash: d.hash, blockNumber: hex(d.block), blockHash: "0x" + "11".repeat(32), status: "0x1", from: d.from, to: d.to,
+        gasUsed: "0x5208", cumulativeGasUsed: "0x5208", effectiveGasPrice: "0x5d21dba00", logs: [], logsBloom: "0x" + "00".repeat(256),
+        contractAddress: null, transactionIndex: "0x0", type: "0x0" } : null);
+    }
     case "eth_sendRawTransaction": rawTxs.push(params[0]); return ok("0x" + "ab".repeat(32));
     default: return { jsonrpc: "2.0", id, error: { code: -32601, message: "mock: " + method } };
   }
@@ -66,6 +95,12 @@ createServer(async (req, res) => {
   const json = (code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
 
   if (req.url === "/_sent") return json(200, { sent, sttCalls, claudeRequests, rawTxs: rawTxs.length });
+  if (req.method === "POST" && req.url === "/_inject") {
+    const d = JSON.parse(body.toString());
+    head += 1;
+    deposits.push({ ...d, block: head, hash: "0x" + head.toString(16).padStart(64, "d") });
+    return json(200, { ok: true, block: head });
+  }
   if (req.method === "POST" && req.url === "/rpc") {
     const parsed = JSON.parse(body.toString());
     return json(200, Array.isArray(parsed) ? parsed.map(rpc) : rpc(parsed));

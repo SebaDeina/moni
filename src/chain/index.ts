@@ -351,6 +351,68 @@ export async function sendTransfer(args: {
   return signAndSend({ account: args.account, to: tokenAddress, data, onPrepared: args.onPrepared });
 }
 
+// ---------------------------------------------------------------------------
+// Depósitos entrantes (para avisar por WhatsApp)
+
+export type Incoming = {
+  hash: `0x${string}`;
+  /** Índice del log para USDC; -1 para AVAX nativo. Junto con el hash identifica el depósito. */
+  logIndex: number;
+  token: Token;
+  from: Address;
+  to: Address;
+  amount: bigint;
+  blockNumber: bigint;
+};
+
+const transferEvent = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 value)"])[0];
+
+export async function latestBlock(): Promise<bigint> {
+  // Sin el cache de viem (4 s por defecto): el vigilante necesita el bloque de este momento.
+  return publicClient.getBlockNumber({ cacheTime: 0 });
+}
+
+/**
+ * AVAX y USDC que entraron a alguna de `wallets` entre `fromBlock` y `toBlock` (inclusive).
+ * USDC sale de los eventos Transfer; AVAX, de recorrer las transacciones de cada bloque.
+ */
+export async function findIncoming(wallets: Address[], fromBlock: bigint, toBlock: bigint): Promise<Incoming[]> {
+  if (wallets.length === 0 || fromBlock > toBlock) return [];
+  const mine = new Set(wallets.map((w) => w.toLowerCase()));
+  const out: Incoming[] = [];
+
+  const logs = await publicClient.getLogs({
+    address: TOKENS.USDC.address!,
+    event: transferEvent,
+    args: { to: wallets },
+    fromBlock,
+    toBlock,
+  });
+  for (const log of logs) {
+    if (!log.args.to || !mine.has(log.args.to.toLowerCase()) || !log.args.value) continue;
+    out.push({
+      hash: log.transactionHash,
+      logIndex: log.logIndex,
+      token: "USDC",
+      from: getAddress(log.args.from!),
+      to: getAddress(log.args.to),
+      amount: log.args.value,
+      blockNumber: log.blockNumber,
+    });
+  }
+
+  for (let n = fromBlock; n <= toBlock; n++) {
+    const block = await publicClient.getBlock({ blockNumber: n, includeTransactions: true });
+    for (const tx of block.transactions) {
+      if (!tx.to || tx.value === 0n || !mine.has(tx.to.toLowerCase())) continue;
+      const receipt = await publicClient.getTransactionReceipt({ hash: tx.hash });
+      if (receipt.status !== "success") continue;
+      out.push({ hash: tx.hash, logIndex: -1, token: "AVAX", from: getAddress(tx.from), to: getAddress(tx.to), amount: tx.value, blockNumber: n });
+    }
+  }
+  return out;
+}
+
 /** Espera a que la transacción entre en un bloque. Devuelve si fue exitosa. */
 export async function waitForTransfer(hash: `0x${string}`, timeoutMs = 30_000): Promise<boolean> {
   const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: timeoutMs });

@@ -11,7 +11,7 @@ node "$HERE/mock.mjs" > "${TMPDIR:-/tmp}/moni-web-mock.log" 2>&1 &
 MOCK_PID=$!
 ( cd "$REPO" && PORT=3917 DATABASE_PATH="$DB" KAPSO_WEBHOOK_SECRET=$SECRET KAPSO_API_KEY=test-key \
   KAPSO_PHONE_NUMBER_ID=999 KAPSO_API_BASE=$MOCK ANTHROPIC_API_KEY=claude-key ANTHROPIC_BASE_URL=$MOCK \
-  MONI_WALLET_MASTER_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff WALLET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d FUJI_RPC_URL=$MOCK/rpc \
+  MONI_WALLET_MASTER_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff WALLET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d FUJI_RPC_URL=$MOCK/rpc DEPOSIT_POLL_MS=300 \
   ALLOWED_SENDERS=541100000000 MONI_WHATSAPP_NUMBER="+56 9 2040 3095" \
   CONTACTS="juan=0x1111111111111111111111111111111111111111,caro=0x2222222222222222222222222222222222222222" \
   npx tsx src/index.ts > "${TMPDIR:-/tmp}/moni-web-app.log" 2>&1 ) &
@@ -39,6 +39,13 @@ echo "8c. Creo la wallet → $(j -X POST $APP/api/wallet | cut -c1-230)"
 echo "8d. Creo otra vez → $(j -X POST $APP/api/wallet | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const m=JSON.parse(d);console.log("created:",m.created)})')"
 echo "9. /api/me → $(j $APP/api/me)"
 echo "9a. Agrego a lola → $(j -X POST $APP/api/contacts -d '{"alias":"Lola","address":"0x5555555555555555555555555555555555555555"}')"
+ADDR=$(j $APP/api/me | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).wallet.address))')
+curl -s -X POST $MOCK/_inject -d "{\"token\":\"USDC\",\"to\":\"$ADDR\",\"from\":\"0x5555555555555555555555555555555555555555\",\"value\":\"7500000\"}" >/dev/null
+curl -s -X POST $MOCK/_inject -d "{\"token\":\"AVAX\",\"to\":\"$ADDR\",\"from\":\"0x9999999999999999999999999999999999999999\",\"value\":\"200000000000000000\"}" >/dev/null
+sleep 1.5
+echo "9a2. Depósitos entrantes → $(curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const s=JSON.parse(d).sent.filter(m=>m.text&&m.text.body.startsWith("💸"));console.log(s.length+" avisos: "+s.map(m=>m.text.body.split("\n")[0]).join(" | "))})')"
+sleep 1
+echo "9a3. Sin duplicados después de otra vuelta → $(curl -s $MOCK/_sent | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).sent.filter(m=>m.text&&m.text.body.startsWith("💸")).length+" avisos"))')"
 echo "9b. Agrego a lola otra vez → $(j -X POST $APP/api/contacts -d '{"alias":"lola","address":"0x5555555555555555555555555555555555555555"}')"
 echo "9c. Dirección inválida → $(j -X POST $APP/api/contacts -d '{"alias":"rafa","address":"0x123"}')"
 echo "9d. Borro a juan (compartido) → $(j -X DELETE $APP/api/contacts/juan)"

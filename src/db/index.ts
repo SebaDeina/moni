@@ -53,6 +53,21 @@ db.exec(`
     created_at INTEGER NOT NULL
   );
 
+  -- Estado chico del servidor (por ejemplo, el último bloque revisado por el vigilante de depósitos).
+  CREATE TABLE IF NOT EXISTS kv (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+
+  -- Depósitos ya avisados por WhatsApp: un aviso por (transacción, log) aunque se revisen bloques dos veces.
+  CREATE TABLE IF NOT EXISTS deposit_notices (
+    tx_hash    TEXT NOT NULL,
+    log_index  INTEGER NOT NULL,
+    phone      TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (tx_hash, log_index)
+  );
+
   -- Contactos pedidos por chat, pendientes de "SI <código>" (mismas reglas que las transferencias).
   CREATE TABLE IF NOT EXISTS contact_requests (
     id          TEXT PRIMARY KEY,

@@ -5,6 +5,7 @@ import { handleUserText } from "./agent/index.js";
 import { canTranscribe, transcribe } from "./agent/transcribe.js";
 import { config } from "./config.js";
 import { saveIncomingMessage } from "./db/index.js";
+import { startDepositWatcher } from "./deposits.js";
 import { canonicalPhone } from "./phone.js";
 import { createApi } from "./web/api.js";
 import { whatsapp, type IncomingMessage } from "./whatsapp/index.js";
@@ -73,6 +74,8 @@ app.route("/api", createApi(allowedSenders));
 app.get("/app", serveStatic({ path: `${config.PUBLIC_DIR}/app/index.html` }));
 app.get("/app/", serveStatic({ path: `${config.PUBLIC_DIR}/app/index.html` }));
 app.use("/*", serveStatic({ root: config.PUBLIC_DIR }));
+
+if (config.DEPOSIT_POLL_MS > 0) startDepositWatcher((phone, text) => whatsapp.sendText(phone, text));
 
 serve({ fetch: app.fetch, port: config.PORT }, (info) => {
   console.log(`Moni escuchando en :${info.port} (WhatsApp: ${whatsapp.name})`);
