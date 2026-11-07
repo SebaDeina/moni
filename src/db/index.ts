@@ -101,6 +101,19 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS auth_codes_phone ON auth_codes (phone, created_at);
 
+  -- Login de la web al revés: la web muestra un código y el usuario lo manda desde su WhatsApp.
+  -- nonce_hash es el hash del valor de la cookie del navegador que lo pidió; phone se completa al llegar el mensaje.
+  CREATE TABLE IF NOT EXISTS wa_logins (
+    nonce_hash  TEXT PRIMARY KEY,
+    code        TEXT NOT NULL,
+    phone       TEXT,
+    expires_at  INTEGER NOT NULL,
+    claimed_at  INTEGER,
+    consumed_at INTEGER,
+    created_at  INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS wa_logins_code ON wa_logins (code, expires_at);
+
   -- Sesiones de la web. Guardamos el hash del token de la cookie.
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,

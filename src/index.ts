@@ -9,6 +9,7 @@ import { startDepositWatcher } from "./deposits.js";
 import { canonicalPhone } from "./phone.js";
 import { deployPendingWallets, upgradeWallets } from "./wallets.js";
 import { createApi } from "./web/api.js";
+import { claimWaLogin, parseWaLoginMessage } from "./web/auth.js";
 import { askConfirmation, whatsapp, type IncomingMessage } from "./whatsapp/index.js";
 
 const app = new Hono();
@@ -41,6 +42,19 @@ async function onMessage(msg: IncomingMessage) {
   // Lo antes posible: el usuario ve el doble check azul y "escribiendo…" mientras pensamos.
   const started = Date.now();
   whatsapp.markReadAndTyping?.(msg).catch((err) => console.warn("[moni] no pude marcar como leído", String(err).slice(0, 160)));
+
+  // "Entrar a Moni: <código>": el mensaje que arma la web para entrar sin tipear el número.
+  const loginCode = msg.kind === "text" ? parseWaLoginMessage(msg.text) : null;
+  if (loginCode) {
+    const ok = claimWaLogin(user, loginCode);
+    await whatsapp.sendText(
+      msg.from,
+      ok
+        ? `Listo, ya entraste a Moni en la web ✅ Volvé al navegador o abrí ${config.PUBLIC_URL}/app\n\nOjo: nunca mandes un código de Moni que te haya pasado otra persona.`
+        : `Ese código no sirve o ya venció. Pedí uno nuevo en ${config.PUBLIC_URL}/app`,
+    );
+    return;
+  }
 
   if (msg.kind === "other") {
     await whatsapp.sendText(msg.from, "Por ahora entiendo mensajes de texto y audios.");

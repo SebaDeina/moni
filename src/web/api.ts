@@ -8,9 +8,27 @@ import { MAX_TRANSFER, formatAmount, listOperations, prepareTransfer } from "../
 import { canonicalPhone, maskPhone } from "../phone.js";
 import { askConfirmation, whatsapp } from "../whatsapp/index.js";
 import { createWallet, getWallet } from "../wallets.js";
-import { SESSION_TTL_MS, createLoginCode, createSession, deleteSession, sessionPhone, verifyLoginCode } from "./auth.js";
+import {
+  SESSION_TTL_MS,
+  WA_LOGIN_TTL_MS,
+  checkWaLogin,
+  createLoginCode,
+  createSession,
+  createWaLogin,
+  deleteSession,
+  sessionPhone,
+  verifyLoginCode,
+} from "./auth.js";
 
 const COOKIE = "moni_session";
+const LOGIN_COOKIE = "moni_login";
+const secure = process.env.NODE_ENV === "production";
+
+const waNumber = () => config.MONI_WHATSAPP_NUMBER?.replace(/\D/g, "");
+
+function startSession(c: Context, phone: string) {
+  setCookie(c, COOKIE, createSession(phone), { httpOnly: true, sameSite: "Lax", secure, path: "/", maxAge: SESSION_TTL_MS / 1000 });
+}
 
 type Vars = { Variables: { phone: string } };
 
@@ -35,7 +53,7 @@ export function createApi(allowedSenders: Set<string>) {
       contract: { address: config.MONI_VAULT_ADDRESS, url: chain.explorerAddressUrl(config.MONI_VAULT_ADDRESS) },
       treasury: treasury ? { address: treasury, url: chain.explorerAddressUrl(treasury) } : null,
       whatsapp: config.MONI_WHATSAPP_NUMBER
-        ? { display: config.MONI_WHATSAPP_NUMBER, link: `https://wa.me/${config.MONI_WHATSAPP_NUMBER.replace(/\D/g, "")}` }
+        ? { display: config.MONI_WHATSAPP_NUMBER, link: `https://wa.me/${waNumber()}`, login: "/api/auth/whatsapp/go" }
         : null,
       privateBeta: allowedSenders.size > 0,
     });
@@ -66,14 +84,27 @@ export function createApi(allowedSenders: Set<string>) {
     if (code.length !== 6 || !verifyLoginCode(phone, code)) {
       return c.json({ error: "El código no es correcto o ya venció." }, 401);
     }
-    setCookie(c, COOKIE, createSession(phone), {
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: SESSION_TTL_MS / 1000,
-    });
+    startSession(c, phone);
     return c.json({ ok: true });
+  });
+
+  // Login al revés: el navegador recibe una cookie y va a WhatsApp con "Entrar a Moni: <código>" ya escrito.
+  // Cuando el mensaje llega por el webhook, el navegador que tiene la cookie entra con ese número.
+  api.get("/auth/whatsapp/go", (c) => {
+    const number = waNumber();
+    if (!number) return c.redirect("/app");
+    const { nonce, code } = createWaLogin();
+    setCookie(c, LOGIN_COOKIE, nonce, { httpOnly: true, sameSite: "Lax", secure, path: "/api/auth", maxAge: WA_LOGIN_TTL_MS / 1000 });
+    return c.redirect(`https://wa.me/${number}?text=${encodeURIComponent(`Entrar a Moni: ${code}`)}`);
+  });
+
+  api.get("/auth/whatsapp", (c) => {
+    const login = checkWaLogin(getCookie(c, LOGIN_COOKIE));
+    if (login.status === "pending") return c.json({ status: "pending", code: login.code, expiresAt: login.expiresAt });
+    deleteCookie(c, LOGIN_COOKIE, { path: "/api/auth" });
+    if (login.status === "expired") return c.json({ status: "expired" });
+    startSession(c, login.phone);
+    return c.json({ status: "ready" });
   });
 
   api.post("/auth/logout", (c) => {

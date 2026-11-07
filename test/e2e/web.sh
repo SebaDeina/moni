@@ -66,4 +66,23 @@ echo "13. Confirmo por WhatsApp desde 549… → $(curl -s -o /dev/null -w '%{ht
 sleep 1.5; echo "    WhatsApp: $(last_wa)"
 echo "14. Actividad → $(j "$APP/api/me/activity?period=week")"
 echo "15. Salir → $(j -X POST $APP/api/auth/logout)   /api/me después → $(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" $APP/api/me)"
+# Login al revés: la web abre WhatsApp con "Entrar a Moni: <código>" y entra cuando llega el mensaje.
+JAR2="${JAR}-wa"
+w() { curl -s -b "$JAR2" -c "$JAR2" "$@"; }
+wa_msg() { # $1 id, $2 texto
+  local body="{\"message\":{\"id\":\"$1\",\"type\":\"text\",\"from\":\"5491100000000\",\"text\":{\"body\":\"$2\"},\"kapso\":{\"direction\":\"inbound\"}},\"phone_number_id\":\"999\"}"
+  local sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')
+  curl -s -o /dev/null -w '%{http_code}' -X POST $APP/webhooks/kapso -H 'content-type: application/json' -H 'x-webhook-event: whatsapp.message.received' -H "x-webhook-signature: $sig" --data-binary "$body"
+}
+echo "16. Sin login en curso → $(w $APP/api/auth/whatsapp)"
+GO=$(w -o /dev/null -w '%{redirect_url}' $APP/api/auth/whatsapp/go)
+echo "17. /api/auth/whatsapp/go → $GO"
+WACODE=$(printf '%s' "$GO" | grep -o '[0-9]\{6\}$')
+echo "18. Esperando → $(w $APP/api/auth/whatsapp)"
+echo "19. Mando 'Entrar a Moni: 000000' (código inválido) → $(wa_msg wlogin0 'Entrar a Moni: 000000')"; sleep 1; echo "    WhatsApp: $(last_wa)"
+echo "20. Mando 'Entrar a Moni: $WACODE' → $(wa_msg wlogin1 "Entrar a Moni: $WACODE")"; sleep 1; echo "    WhatsApp: $(last_wa)"
+echo "21. La web consulta → $(w $APP/api/auth/whatsapp)   /api/me → $(w -o /dev/null -w '%{http_code}' $APP/api/me)"
+echo "22. Consulta otra vez (ya consumido) → $(w $APP/api/auth/whatsapp)"
+echo "23. Reuso el código → $(wa_msg wlogin2 "entrar a moni $WACODE")"; sleep 1; echo "    WhatsApp: $(last_wa)"
+rm -f "$JAR2"
 echo "--- errores en el log"; grep -iE "error|warn" "${TMPDIR:-/tmp}/moni-web-app.log" | grep -v ExperimentalWarning | head -5

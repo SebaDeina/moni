@@ -85,19 +85,34 @@
 </header>
 
 <main class="wrap">
-  <!-- Login: número → código por WhatsApp -->
+  <!-- Login: mensaje desde WhatsApp (o número → código por WhatsApp) -->
   <section class="login" id="view-login" hidden>
     <div class="card">
       <span class="mark dither" style="width:48px;height:48px;color:var(--azul-texto)"></span>
-      <div id="step-phone">
+      <div id="step-wa-start" hidden style="display:grid;gap:16px">
+        <h1>Entrá con tu WhatsApp</h1>
+        <p>Te abrimos WhatsApp con un mensaje listo para Moni. Lo mandás y esta página entra sola.</p>
+        <a class="btn primary" id="wa-login" href="/api/auth/whatsapp/go" target="_blank" rel="noopener">Abrir WhatsApp</a>
+        <button class="link-btn" type="button" id="use-code">Prefiero que me manden un código</button>
+      </div>
+      <div id="step-wa-wait" hidden style="display:grid;gap:16px" aria-live="polite">
+        <h1>Mandá el mensaje en WhatsApp</h1>
+        <p>Enviale a Moni este mensaje desde tu WhatsApp. Cuando llegue, entrás.</p>
+        <span class="mono" id="wa-code" style="font-size:22px;letter-spacing:.06em">Entrar a Moni: ······</span>
+        <p id="wa-status">Esperando tu mensaje… Vence en 5 minutos.</p>
+        <a class="btn primary" id="wa-reopen" href="/api/auth/whatsapp/go" target="_blank" rel="noopener">Abrir WhatsApp de nuevo</a>
+        <button class="link-btn" type="button" id="wa-cancel">Usar otro método</button>
+      </div>
+      <div id="step-phone" hidden>
         <form id="form-phone" style="display:grid;gap:16px">
-          <h1>Entrá con tu WhatsApp</h1>
+          <h1>Entrá con un código</h1>
           <p>Te mandamos un código de 6 dígitos al mismo número con el que hablás con Moni.</p>
           <label class="field">Tu número, con código de país
             <input id="phone" class="mono" type="tel" inputmode="tel" autocomplete="tel" placeholder="54 11 2345 6789" required>
           </label>
           <p class="error" id="phone-error" role="alert"></p>
           <button class="btn primary" type="submit">Mandarme el código</button>
+          <button class="link-btn" type="button" id="use-wa" hidden>Mejor entro mandando un mensaje</button>
         </form>
       </div>
       <div id="step-code" hidden>

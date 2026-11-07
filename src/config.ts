@@ -34,6 +34,8 @@ const Env = z.object({
   // Web: número de WhatsApp de Moni para los links de la landing (formato libre, se muestra tal cual)
   MONI_WHATSAPP_NUMBER: optional,
   PUBLIC_DIR: z.string().default("./public"),
+  /** URL pública de la web, para los links que Moni manda por WhatsApp. */
+  PUBLIC_URL: z.string().url().default("https://moni.nimbodata.com"),
 
   // Avalanche Fuji
   FUJI_RPC_URL: z.string().url().default("https://api.avax-test.network/ext/bc/C/rpc"),

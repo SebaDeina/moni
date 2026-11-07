@@ -61,15 +61,71 @@
   }
 
   // ---------- Login ----------
+  // Por defecto, al revés: abrimos WhatsApp con "Entrar a Moni: <código>" y esta página espera el mensaje.
+  // Si Moni no tiene número publicado, queda el login de siempre (número → código por WhatsApp).
   let pendingPhone = "";
+  let waLink = null; // https://wa.me/<número de Moni>, de /api/public
+  let waTimer = null;
+  let waStartedAt = 0;
+  const LOGIN_STEPS = ["step-wa-start", "step-wa-wait", "step-phone", "step-code"];
+
+  function showStep(id) {
+    for (const s of LOGIN_STEPS) $(s).hidden = s !== id;
+    if (id !== "step-wa-wait") stopWaPolling();
+  }
 
   function showLogin() {
     $("view-app").hidden = true;
     $("who").hidden = true;
     $("view-login").hidden = false;
-    $("step-phone").hidden = false;
-    $("step-code").hidden = true;
+    $("use-wa").hidden = !waLink;
+    showStep(waLink ? "step-wa-start" : "step-phone");
   }
+
+  function stopWaPolling() {
+    clearTimeout(waTimer);
+    waTimer = null;
+  }
+
+  async function pollWaLogin() {
+    stopWaPolling();
+    let r;
+    try {
+      r = await api("/auth/whatsapp");
+    } catch {
+      r = { status: "pending" }; // un error de red no corta la espera
+    }
+    if (r.status === "ready") return loadApp();
+    if (r.status === "pending" && r.code) {
+      const text = "Entrar a Moni: " + r.code;
+      $("wa-code").textContent = text;
+      if (waLink) $("wa-reopen").href = waLink + "?text=" + encodeURIComponent(text);
+    }
+    // La cookie la pone la pestaña que abre WhatsApp: los primeros segundos puede no estar todavía.
+    if (r.status === "expired" && Date.now() - waStartedAt > 15000) {
+      showStep(waLink ? "step-wa-start" : "step-phone");
+      $("phone-error").textContent = "";
+      return;
+    }
+    if (!$("step-wa-wait").hidden) waTimer = setTimeout(pollWaLogin, 2000);
+  }
+
+  function waitForWhatsApp() {
+    waStartedAt = Date.now();
+    $("wa-code").textContent = "Entrar a Moni: ······";
+    $("wa-reopen").href = "/api/auth/whatsapp/go";
+    showStep("step-wa-wait");
+    waTimer = setTimeout(pollWaLogin, 1500);
+  }
+
+  $("wa-login").addEventListener("click", waitForWhatsApp);
+  $("wa-cancel").addEventListener("click", () => showStep("step-phone"));
+  $("use-code").addEventListener("click", () => showStep("step-phone"));
+  $("use-wa").addEventListener("click", () => showStep("step-wa-start"));
+  // Al volver de WhatsApp (sobre todo en el celular) chequeamos enseguida.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && !$("step-wa-wait").hidden) pollWaLogin();
+  });
 
   $("form-phone").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -80,8 +136,7 @@
       pendingPhone = $("phone").value;
       const r = await api("/auth/request", { method: "POST", body: JSON.stringify({ phone: pendingPhone }) });
       $("sent-to").textContent = r.sentTo;
-      $("step-phone").hidden = true;
-      $("step-code").hidden = false;
+      showStep("step-code");
       $("code").focus();
     } catch (err) {
       $("phone-error").textContent = err.message;
@@ -106,10 +161,7 @@
     }
   });
 
-  $("change-phone").addEventListener("click", () => {
-    $("step-code").hidden = true;
-    $("step-phone").hidden = false;
-  });
+  $("change-phone").addEventListener("click", () => showStep("step-phone"));
 
   $("logout").addEventListener("click", async () => {
     await api("/auth/logout", { method: "POST" }).catch(() => {});
@@ -355,5 +407,28 @@
     }
   });
 
-  loadApp().catch(() => showLogin());
+  // Al cargar: con sesión, el panel. Sin sesión, si hay un login por WhatsApp en curso (por ejemplo, se
+  // abrió desde la landing o desde el link que manda Moni), lo retomamos.
+  async function start() {
+    const pub = await api("/public").catch(() => ({}));
+    waLink = pub.whatsapp ? pub.whatsapp.link : null;
+    try {
+      await api("/me");
+      return loadApp();
+    } catch (err) {
+      if (err.status !== 401) throw err;
+    }
+    const wa = await api("/auth/whatsapp").catch(() => ({ status: "expired" }));
+    if (wa.status === "ready") return loadApp();
+    showLogin();
+    // ?wa=1: venimos de la landing, que acaba de abrir WhatsApp en otra pestaña (la cookie puede tardar).
+    const fromLanding = new URLSearchParams(location.search).has("wa");
+    if (fromLanding) history.replaceState(null, "", "/app");
+    if (wa.status === "pending" || (fromLanding && waLink)) {
+      waitForWhatsApp();
+      pollWaLogin();
+    }
+  }
+
+  start().catch(() => showLogin());
 })();

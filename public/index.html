@@ -100,7 +100,7 @@
       <a href="#avalanche">Por qué Avalanche</a>
       <a href="#seguridad">Seguridad</a>
     </div>
-    <a class="btn ghost" href="/app">Entrar</a>
+    <a class="btn ghost js-login" href="/app">Entrar</a>
   </div>
 </nav>
 
@@ -113,7 +113,7 @@
       <p class="lead">Le escribís a Moni como a un amigo: te dice cuánto tenés, en qué se te fue la semana y le manda plata a tus contactos. Nada se mueve sin tu sí.</p>
       <div class="ctas">
         <a class="btn primary" id="cta-wa" href="/app">Escribile a Moni</a>
-        <a class="btn ghost" href="/app">Entrar a la web</a>
+        <a class="btn ghost js-login" href="/app">Entrar a la web</a>
       </div>
       <p class="fine" id="beta-note">Prototipo en Avalanche Fuji (testnet): AVAX de prueba, sin valor real.</p>
     </div>
@@ -214,7 +214,7 @@
         <li>Tu agenda de contactos.</li>
         <li>Envíos que se confirman por WhatsApp.</li>
       </ul>
-      <div class="ctas" style="margin-top:8px"><a class="btn primary" href="/app">Entrar a la web</a></div>
+      <div class="ctas" style="margin-top:8px"><a class="btn primary js-login" href="/app">Entrar a la web</a></div>
     </div>
     <div class="card preview" aria-hidden="true">
       <span class="label">Saldo</span>
@@ -244,6 +244,16 @@
     if (d.whatsapp) {
       const cta = document.getElementById("cta-wa");
       cta.href = d.whatsapp.link; cta.target = "_blank"; cta.rel = "noopener";
+      // "Entrar": abre WhatsApp con "Entrar a Moni: <código>" listo para mandar, y esta pestaña pasa a /app,
+      // que espera el mensaje y entra sola.
+      document.querySelectorAll(".js-login").forEach((a) => a.addEventListener("click", (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        const tab = window.open(d.whatsapp.login, "_blank");
+        if (!tab) { location.href = d.whatsapp.login; return; }
+        tab.opener = null;
+        location.href = "/app?wa=1";
+      }));
     }
     if (d.privateBeta) document.getElementById("beta-note").textContent =
       "Prueba privada en Avalanche Fuji (testnet): AVAX de prueba, sin valor real.";
