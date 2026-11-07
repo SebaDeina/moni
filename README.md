@@ -100,6 +100,15 @@ El usuario nunca necesita AVAX para el gas (`src/chain/gasless.ts`):
 - Sin la clave (respaldo, `SPONSOR_GAS=true`): la smart account paga su propio gas y la tesorería se lo recarga antes de cada envío. Para el usuario es igual: nunca paga gas.
 - Los envíos de una smart account se ven en el explorador como transacciones internas. El historial junta las nativas y las internas y, con el evento `Paid` de MoniVault, muestra a la persona del otro lado. Los avisos de depósito también leen `Paid`.
 
+### Bonus 0xGasless: evidencia en Fuji
+
+**Componente:** paymaster ERC-4337 de 0xGasless (modo `SPONSORED`) + smart account por usuario (`@0xgasless/smart-account-sdk`).
+**Por qué:** es parte del flujo principal (nivel *Core*). El usuario de Moni nunca necesita AVAX: manda dólares desde WhatsApp y el gas de cada envío lo paga el paymaster.
+
+- **Envío real de Moni patrocinado** (1 USDC por MoniVault, 7/11 16:44): [tx `0x0051…6a8e`](https://testnet.snowtrace.io/tx/0x00514ac9c6b4b81dda7b526a3bfad63e07f1262482c08f0e3fe4316b5d756a8e). En el recibo, el evento `UserOperationEvent` del EntryPoint muestra el paymaster `0xC68dAd686FCae526db286d84E1fC8aDDc7B2FE98` (gas pagado: 0,0005 AVAX, por 0xGasless) y MoniVault emite `Paid(…, 1 USDC, memo "Moni")`.
+- **Primera userOp de una cuenta nueva (con despliegue), patrocinada:** [tx `0x5263…81ae`](https://testnet.snowtrace.io/tx/0x52630885971ff4441af39d9c67dc17a47a01916f54c2c3466cdbc6d33dac81ae).
+- Si el paymaster no patrocina (por ejemplo, sin créditos: devuelve `AA33`), Moni manda la misma userOp sin paymaster y la tesorería le recarga el gas a la cuenta; el usuario tampoco paga. Las cuentas se despliegan al crearse, así el paymaster patrocina desde el primer envío.
+
 Variables: `OXGASLESS_API_KEY` (la clave del paymaster de Fuji), y opcionales `OXGASLESS_BUNDLER_URL` y `OXGASLESS_PAYMASTER_URL`. Pruebas contra Fuji (`scripts/gasless-smoke.ts`):
 
 - `--self-paid`: el mismo envío de Moni pero sin paymaster (la smart account paga su gas). Prueba bundler, despliegue de la cuenta, pago por MoniVault y lectura de la actividad. Corrida del 7/11: [despliegue + depósito + `setContact` + `pay` en una userOp](https://testnet.snowtrace.io/tx/0x5ad4f48dc7efd9ecf529b2f2a0275707c87d5f21fda307afd7dbc16ade469324), desde la smart account [`0xf26D…97C3`](https://testnet.snowtrace.io/address/0xf26D273ce87d1cC117299B02c830b0d22a2397C3).
