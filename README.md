@@ -80,7 +80,9 @@ Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS
 ## Web
 
 - **Landing**: `https://moni.nimbodata.com` (`public/index.html`).
-- **Plataforma**: `https://moni.nimbodata.com/app` (`public/app/index.html` + `public/assets/app.js`). Se entra con el número de WhatsApp y un código de 6 dígitos que llega por WhatsApp (vence en 5 minutos, máximo 3 pedidos cada 10 minutos y 5 intentos). Muestra saldo, wallet, contrato, actividad y agenda.
+- **Plataforma**: `https://moni.nimbodata.com/app` (`public/app/index.html` + `public/assets/app.js`). Muestra saldo, wallet, contrato, actividad y agenda.
+- **Login con un mensaje**: *Entrar* (en la landing o en `/app`) abre WhatsApp con "Entrar a Moni: 123456" ya escrito (`/api/auth/whatsapp/go`). El usuario lo manda y la página que lo pidió entra sola: la reconoce por una cookie, y el número sale del mensaje de WhatsApp. El código vence en 5 minutos y sirve una sola vez. La respuesta de Moni trae el link a `/app` por si el usuario vuelve al navegador desde el celular.
+- **Login con código (alternativa)**: el número de WhatsApp y un código de 6 dígitos que llega por WhatsApp (vence en 5 minutos, máximo 3 pedidos cada 10 minutos y 5 intentos).
 - **Envíos desde la web**: la web propone y la confirmación llega por WhatsApp con botones, con las mismas reglas que el chat (`prepareTransfer` en `src/operations.ts`).
 - **API**: `src/web/api.ts` (`/api/public`, `/api/auth/*`, `/api/me`, `/api/me/activity`, `/api/transfers`).
 - Diseño según el brand book (`brand/marca.html`): Azul Moni sobre papel, Geist y Geist Mono, logo generado con la misma grilla.
