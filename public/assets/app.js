@@ -1,0 +1,232 @@
+// Plataforma de Moni: login por WhatsApp y panel. Sin dependencias.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const STATUS = {
+    proposed: { text: "Esperando tu SI", tone: "" },
+    confirmed: { text: "Enviando", tone: "" },
+    sent: { text: "Enviada", tone: "" },
+    failed: { text: "No salió", tone: "alerta" },
+    expired: { text: "Venció", tone: "alerta" },
+  };
+  const CONFIRM_WINDOW_MS = 2 * 60 * 1000;
+  let period = "week";
+  let pollTimer = null;
+
+  async function api(path, options = {}) {
+    const res = await fetch("/api" + path, {
+      ...options,
+      headers: options.body ? { "Content-Type": "application/json" } : {},
+      credentials: "same-origin",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || "Algo salió mal. Probá de nuevo."), { status: res.status });
+    return data;
+  }
+
+  const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
+  const el = (tag, props = {}, ...children) => {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children.filter((c) => c !== null && c !== undefined));
+    return node;
+  };
+  const extLink = (url, text) => el("a", { href: url, target: "_blank", rel: "noopener", textContent: text });
+  const avax = (s) => s.replace(" AVAX", "").replace(".", ",") + " AVAX";
+  const when = (ms) =>
+    new Date(ms).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+
+  function addressWithCopy(address, url) {
+    const copy = el("button", { className: "copy", type: "button", textContent: "Copiar" });
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(address);
+        copy.textContent = "Copiada";
+      } catch {
+        copy.textContent = address;
+      }
+      setTimeout(() => (copy.textContent = "Copiar"), 1500);
+    });
+    return el("span", { className: "addr" }, extLink(url, short(address) + " ↗"), copy);
+  }
+
+  // ---------- Login ----------
+  let pendingPhone = "";
+
+  function showLogin() {
+    $("view-app").hidden = true;
+    $("who").hidden = true;
+    $("view-login").hidden = false;
+    $("step-phone").hidden = false;
+    $("step-code").hidden = true;
+  }
+
+  $("form-phone").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = e.submitter;
+    btn.disabled = true;
+    $("phone-error").textContent = "";
+    try {
+      pendingPhone = $("phone").value;
+      const r = await api("/auth/request", { method: "POST", body: JSON.stringify({ phone: pendingPhone }) });
+      $("sent-to").textContent = r.sentTo;
+      $("step-phone").hidden = true;
+      $("step-code").hidden = false;
+      $("code").focus();
+    } catch (err) {
+      $("phone-error").textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $("form-code").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = e.submitter;
+    btn.disabled = true;
+    $("code-error").textContent = "";
+    try {
+      await api("/auth/verify", { method: "POST", body: JSON.stringify({ phone: pendingPhone, code: $("code").value }) });
+      $("code").value = "";
+      await loadApp();
+    } catch (err) {
+      $("code-error").textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $("change-phone").addEventListener("click", () => {
+    $("step-code").hidden = true;
+    $("step-phone").hidden = false;
+  });
+
+  $("logout").addEventListener("click", async () => {
+    await api("/auth/logout", { method: "POST" }).catch(() => {});
+    clearInterval(pollTimer);
+    showLogin();
+  });
+
+  // ---------- Panel ----------
+  async function loadApp() {
+    let me;
+    try {
+      me = await api("/me");
+    } catch (err) {
+      if (err.status === 401) return showLogin();
+      throw err;
+    }
+    $("view-login").hidden = true;
+    $("view-app").hidden = false;
+    $("who").hidden = false;
+    $("who-phone").textContent = me.phone;
+
+    $("balance").textContent = me.balance ? avax(me.balance) : "—";
+    $("balance-note").hidden = Boolean(me.balance);
+    $("max").textContent = avax(me.maxTransfer);
+    if (me.wallet) $("wallet").replaceChildren(addressWithCopy(me.wallet.address, me.wallet.url));
+
+    const pub = await api("/public").catch(() => null);
+    if (pub && pub.contract) $("contract").replaceChildren(addressWithCopy(pub.contract.address, pub.contract.url));
+
+    const select = $("send-alias");
+    select.replaceChildren(...me.contacts.map((c) => el("option", { value: c.alias, textContent: c.alias })));
+    $("send-btn").disabled = me.contacts.length === 0;
+    $("contacts-count").textContent = me.contacts.length ? String(me.contacts.length) : "";
+    $("contacts").replaceChildren(
+      ...(me.contacts.length
+        ? me.contacts.map((c) =>
+            el("div", { className: "item" }, el("span", { className: "what", textContent: c.alias }), el("span", { className: "side" }, extLink(c.url, short(c.address) + " ↗"))),
+          )
+        : [el("p", { className: "empty", textContent: "Todavía no hay contactos en la agenda. Se cargan desde la configuración de Moni." })]),
+    );
+
+    await loadActivity();
+    clearInterval(pollTimer);
+    pollTimer = setInterval(loadActivity, 5000);
+  }
+
+  function statusOf(op) {
+    if (op.status === "proposed" && Date.now() - op.createdAt > CONFIRM_WINDOW_MS) return STATUS.expired;
+    return STATUS[op.status] || { text: op.status, tone: "" };
+  }
+
+  async function loadActivity() {
+    let data;
+    try {
+      data = await api("/me/activity?period=" + period);
+    } catch (err) {
+      if (err.status === 401) return showLogin();
+      return;
+    }
+    const rows = [];
+    for (const op of data.operations) {
+      const s = statusOf(op);
+      rows.push({
+        at: op.createdAt,
+        node: el(
+          "div",
+          { className: "item" },
+          el("span", { className: "what", textContent: "Envío a " + op.alias }),
+          el("span", { className: "side" }, el("span", { className: "amt", textContent: "−" + avax(op.amount) })),
+          el("span", { className: "when", textContent: when(op.createdAt) }),
+          el("span", { className: "side" }, op.txUrl ? extLink(op.txUrl, "Ver en Snowtrace ↗") : el("span", { className: "chip" + (s.tone ? " " + s.tone : ""), textContent: s.text })),
+        ),
+      });
+    }
+    for (const tx of data.transactions || []) {
+      rows.push({
+        at: tx.timestamp,
+        node: el(
+          "div",
+          { className: "item" },
+          el("span", { className: "what", textContent: (tx.direction === "in" ? "Recibiste de " : "Mandaste a ") + short(tx.counterparty) }),
+          el("span", { className: "side" }, el("span", { className: "amt", textContent: (tx.direction === "in" ? "+" : "−") + avax(tx.amount) })),
+          el("span", { className: "when", textContent: when(tx.timestamp) + (tx.success ? "" : " · falló") }),
+          el("span", { className: "side" }, extLink(tx.url, "Ver ↗")),
+        ),
+      });
+    }
+    rows.sort((a, b) => b.at - a.at);
+    const note = data.transactions === null ? el("p", { className: "empty", textContent: "Los movimientos de la red van a aparecer acá cuando termine la conexión con Avalanche." }) : null;
+    $("activity").replaceChildren(
+      ...(rows.length ? rows.map((r) => r.node) : [el("p", { className: "empty", textContent: "Todavía no hay movimientos en este período." })]),
+      ...(note ? [note] : []),
+    );
+  }
+
+  document.querySelectorAll(".tabs button").forEach((b) =>
+    b.addEventListener("click", () => {
+      period = b.dataset.period;
+      document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      loadActivity();
+    }),
+  );
+
+  $("form-send").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const notice = $("send-notice");
+    const btn = $("send-btn");
+    btn.disabled = true;
+    notice.hidden = true;
+    try {
+      const r = await api("/transfers", {
+        method: "POST",
+        body: JSON.stringify({ alias: $("send-alias").value, amount: $("send-amount").value }),
+      });
+      notice.className = "notice";
+      notice.replaceChildren(
+        el("b", { textContent: "Te mandé un WhatsApp para confirmar." }),
+        el("span", { textContent: `Respondé SI con el código para mandarle ${avax(r.amount)} a ${r.alias}. Vence en 2 minutos.` }),
+      );
+      $("send-amount").value = "";
+      loadActivity();
+    } catch (err) {
+      notice.className = "notice alerta";
+      notice.replaceChildren(el("span", { textContent: err.message }));
+    } finally {
+      notice.hidden = false;
+      btn.disabled = false;
+    }
+  });
+
+  loadApp().catch(() => showLogin());
+})();

@@ -1,9 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { formatEther, parseEther } from "viem";
+import { formatEther } from "viem";
 import * as chain from "../chain/index.js";
 import { consumeConfirmation, parseConfirmation } from "../confirmations.js";
-import { findContact, listAliases } from "../contacts.js";
-import { executeConfirmedOperation, proposeTransfer } from "../operations.js";
+import { executeConfirmedOperation, prepareTransfer } from "../operations.js";
 import { config } from "../config.js";
 import { MODEL, claude } from "./llm.js";
 import { tools } from "./tools.js";
@@ -15,8 +14,6 @@ const MAX_TOOL_ROUNDS = 5;
 const SUPPORTS_FALLBACK = /^claude-(fable-5-1|opus-5-5|opus-5|sonnet-5-5)$/.test(MODEL);
 const HISTORY_TURNS = 10;
 const HISTORY_TTL_MS = 30 * 60 * 1000;
-/** Tope por transferencia. Es testnet, pero evita que un error de tipeo vacíe la wallet de la demo. */
-const MAX_TRANSFER_WEI = parseEther("10");
 
 const SYSTEM_PROMPT = `Sos Moni, una billetera que se usa por WhatsApp. Hablás en castellano rioplatense, con mensajes cortos y claros, como en un chat.
 
@@ -71,23 +68,9 @@ async function runTool(sender: string, name: string, args: Record<string, unknow
       }
 
       case "propose_native_transfer": {
-        const alias = String(args.alias ?? "");
-        const amountText = String(args.amountAvax ?? "").replace(",", ".");
-        const contact = findContact(alias);
-        if (!contact) return { error: `No tengo a "${alias}" en la agenda.`, contactos: listAliases() };
-        if (!/^\d+(\.\d{1,18})?$/.test(amountText)) return { error: "Monto inválido. Pedí el monto en AVAX, por ejemplo 0.5." };
-        const amountWei = parseEther(amountText);
-        if (amountWei <= 0n) return { error: "El monto tiene que ser mayor a cero." };
-        if (amountWei > MAX_TRANSFER_WEI) return { error: `El máximo por transferencia es ${avax(MAX_TRANSFER_WEI)}.` };
-        try {
-          if (!(await chain.canAfford(amountWei, contact.address))) {
-            return { error: "No alcanza el saldo para ese monto más el gas." };
-          }
-        } catch (err) {
-          if (!(err instanceof chain.NotImplemented)) throw err;
-        }
-        const { code } = proposeTransfer(sender, contact, amountWei);
-        return { codigo: code, destino: contact.alias, direccion: contact.address, monto: avax(amountWei), vence_en: "2 minutos" };
+        const prepared = await prepareTransfer(sender, String(args.alias ?? ""), String(args.amountAvax ?? ""));
+        if ("error" in prepared) return prepared;
+        return { codigo: prepared.code, destino: prepared.alias, direccion: prepared.address, monto: prepared.amount, vence_en: "2 minutos" };
       }
 
       default:

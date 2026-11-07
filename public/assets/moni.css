@@ -1,0 +1,89 @@
+/* Moni: tokens del brand book (brand/marca.html). Azul Moni sobre papel; Geist para la voz, Geist Mono para los datos. */
+:root {
+  --papel: #F4F6FA;
+  --superficie: #FFFFFF;
+  --tinta: #0B0E14;
+  --azul: #2F5FD0;
+  --azul-texto: #2F5FD0;
+  --sobre-azul: #FFFFFF;
+  --celeste: #9BB6EA;
+  --bruma: #DCE5F8;
+  --grafito: #5E6576;
+  --linea: #D6DCE7;
+  --alerta: #B3261E;
+  --alerta-suave: #FBE9E7;
+  --display: "Geist", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radio: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #0B0E14; --superficie: #131824; --tinta: #F4F6FA; --azul: #2F5FD0; --azul-texto: #9BB6EA;
+    --sobre-azul: #FFFFFF; --celeste: #9BB6EA; --bruma: #1C2538; --grafito: #9AA3B5; --linea: #263049;
+    --alerta: #F2A49D; --alerta-suave: #3A1A1A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #0B0E14; --superficie: #131824; --tinta: #F4F6FA; --azul: #2F5FD0; --azul-texto: #9BB6EA;
+  --sobre-azul: #FFFFFF; --celeste: #9BB6EA; --bruma: #1C2538; --grafito: #9AA3B5; --linea: #263049;
+  --alerta: #F2A49D; --alerta-suave: #3A1A1A; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--papel); color: var(--tinta);
+  font-family: var(--display); font-size: 17px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--azul-texto); }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.025em; text-wrap: balance; line-height: 1.08; }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.label {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--grafito);
+}
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+
+/* Logo: el símbolo se pinta con el color del texto a través de una máscara. */
+.mark { display: inline-block; width: 28px; height: 28px; background: currentColor;
+  -webkit-mask: url(/assets/moni-mark-solid.svg) center / contain no-repeat; mask: url(/assets/moni-mark-solid.svg) center / contain no-repeat; }
+.mark.dither { -webkit-mask-image: url(/assets/moni-mark.svg); mask-image: url(/assets/moni-mark.svg); }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--azul-texto); text-decoration: none; }
+.brand .word { font-weight: 600; font-size: 22px; letter-spacing: -0.05em; color: var(--tinta); }
+
+/* Botones */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 500 16px/1 var(--display); padding: 14px 20px; border-radius: 999px; border: 1px solid transparent;
+  text-decoration: none; cursor: pointer; transition: transform .12s ease, background .12s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--azul); color: var(--sobre-azul); }
+.btn.primary:hover { background: #2752BC; }
+.btn.ghost { background: transparent; color: var(--tinta); border-color: var(--linea); }
+.btn.ghost:hover { border-color: var(--grafito); }
+.btn[disabled] { opacity: .55; cursor: progress; }
+:focus-visible { outline: 2px solid var(--azul-texto); outline-offset: 3px; }
+
+/* Superficies */
+.card { background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio); padding: 22px; min-width: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--mono); letter-spacing: .02em;
+  padding: 6px 10px; border-radius: 999px; background: var(--bruma); color: var(--tinta); white-space: nowrap;
+}
+.chip.alerta { background: var(--alerta-suave); color: var(--alerta); }
+.chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--azul-texto); }
+
+input, select {
+  font: 500 17px var(--display); color: var(--tinta); background: var(--papel);
+  border: 1px solid var(--linea); border-radius: 12px; padding: 13px 14px; width: 100%;
+}
+input.mono { font-family: var(--mono); }
+label.field { display: grid; gap: 6px; font-size: 14px; color: var(--grafito); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

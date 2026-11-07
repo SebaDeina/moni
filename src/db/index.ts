@@ -51,6 +51,25 @@ db.exec(`
     consumed_at  INTEGER,
     PRIMARY KEY (sender, code)
   );
+
+  -- Login de la web: código de 6 dígitos por WhatsApp. Guardamos el hash, no el código.
+  CREATE TABLE IF NOT EXISTS auth_codes (
+    phone       TEXT NOT NULL,
+    code_hash   TEXT NOT NULL,
+    expires_at  INTEGER NOT NULL,
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    consumed_at INTEGER,
+    created_at  INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS auth_codes_phone ON auth_codes (phone, created_at);
+
+  -- Sesiones de la web. Guardamos el hash del token de la cookie.
+  CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    phone      TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
 `);
 
 /** Guarda el mensaje. Devuelve false si ya lo habíamos recibido (webhook repetido). */

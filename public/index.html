@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moni · Tu plata, hablando en WhatsApp</title>
+<meta name="description" content="Moni es una billetera que usás por WhatsApp: te dice cuánto tenés, en qué se te fue la semana y le manda plata a tus contactos sobre Avalanche. Nada se mueve sin tu sí.">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/moni.css">
+<style>
+  nav { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--papel) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--linea); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+  nav .links { display: flex; gap: 22px; font-size: 15px; }
+  nav .links a { color: var(--grafito); text-decoration: none; }
+  nav .links a:hover { color: var(--tinta); }
+
+  .hero { position: relative; overflow: hidden; border-bottom: 1px solid var(--linea); }
+  .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5; pointer-events: none; }
+  .hero .wrap { position: relative; display: grid; grid-template-columns: 1.15fr 1fr; gap: 56px; align-items: center; padding-block: 88px 96px; }
+  .hero-text { display: grid; gap: 22px; min-width: 0; }
+  .hero h1 { font-size: clamp(44px, 6.4vw, 80px); font-weight: 600; letter-spacing: -0.045em; }
+  .hero h1 em { font-style: normal; color: var(--azul-texto); }
+  .hero .lead { font-size: 20px; color: var(--grafito); max-width: 34ch; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .fine { font-size: 13px; color: var(--grafito); }
+
+  .chat { background: var(--superficie); border: 1px solid var(--linea); border-radius: 22px; padding: 18px; display: grid; gap: 10px; box-shadow: 0 24px 60px -36px rgba(11, 14, 20, .45); min-width: 0; }
+  .chat-head { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--linea); }
+  .chat-head .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--azul); color: #fff; display: grid; place-items: center; }
+  .chat-head .avatar .mark { width: 22px; height: 22px; }
+  .chat-head b { font-weight: 600; }
+  .bubble { max-width: 86%; padding: 10px 14px; border-radius: 16px; font-size: 15.5px; line-height: 1.45; }
+  .bubble.me { justify-self: end; background: var(--azul); color: #fff; border-bottom-right-radius: 4px; }
+  .bubble.moni { justify-self: start; background: var(--bruma); color: var(--tinta); border-bottom-left-radius: 4px; }
+  .bubble .mono { font-size: 14px; }
+  .bubble.audio { display: flex; align-items: center; gap: 10px; }
+  .wave { display: inline-flex; gap: 2px; align-items: center; height: 18px; }
+  .wave i { width: 3px; background: currentColor; border-radius: 2px; opacity: .85; }
+
+  section.block { padding-block: 88px; border-bottom: 1px solid var(--linea); }
+  .section-head { display: grid; gap: 12px; max-width: 640px; margin-bottom: 40px; }
+  .section-head h2 { font-size: clamp(32px, 4vw, 48px); }
+  .section-head p { color: var(--grafito); font-size: 18px; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .step { display: grid; gap: 10px; align-content: start; }
+  .step .n { font: 500 13px var(--mono); color: var(--azul-texto); }
+  .step h3 { font-size: 22px; }
+  .step p { color: var(--grafito); }
+  .step .say { font: 14px/1.4 var(--mono); background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; padding: 10px 12px; color: var(--tinta); }
+
+  .why { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: start; }
+  .why ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
+  .why li { display: grid; grid-template-columns: 120px 1fr; gap: 18px; padding-top: 18px; border-top: 1px solid var(--linea); }
+  .why li b { font: 500 26px var(--mono); letter-spacing: -0.02em; color: var(--azul-texto); }
+  .why li p { color: var(--grafito); }
+  .why li strong { color: var(--tinta); font-weight: 600; display: block; margin-bottom: 4px; }
+  .netcard { display: grid; gap: 14px; }
+  .netcard .row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--linea); }
+  .netcard .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .netcard .row span:last-child { font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; text-align: right; }
+
+  .rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .rule { display: grid; gap: 6px; }
+  .rule h3 { font-size: 19px; }
+  .rule p { color: var(--grafito); font-size: 16px; }
+
+  .web { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .web ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--grafito); }
+  .preview { display: grid; gap: 12px; }
+  .preview .bal { font: 500 40px var(--mono); letter-spacing: -0.03em; }
+  .preview .line { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; padding-top: 10px; border-top: 1px solid var(--linea); }
+
+  footer { padding-block: 40px 56px; color: var(--grafito); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (max-width: 900px) {
+    nav .links { display: none; }
+    .hero canvas { opacity: .22; }
+    .hero .wrap, .why, .web { grid-template-columns: 1fr; gap: 40px; }
+    .hero .wrap { padding-block: 56px 64px; }
+    .steps, .rules { grid-template-columns: 1fr; }
+    .why li { grid-template-columns: 1fr; gap: 6px; }
+    section.block { padding-block: 64px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Moni, inicio"><span class="mark"></span><span class="word">moni</span></a>
+    <div class="links">
+      <a href="#como">Cómo funciona</a>
+      <a href="#avalanche">Por qué Avalanche</a>
+      <a href="#seguridad">Seguridad</a>
+    </div>
+    <a class="btn ghost" href="/app">Entrar</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <canvas id="trama" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div class="hero-text">
+      <span class="label">Billetera en WhatsApp · Avalanche</span>
+      <h1>Tu plata, <em>hablando</em> en WhatsApp.</h1>
+      <p class="lead">Le escribís a Moni como a un amigo: te dice cuánto tenés, en qué se te fue la semana y le manda plata a tus contactos. Nada se mueve sin tu sí.</p>
+      <div class="ctas">
+        <a class="btn primary" id="cta-wa" href="/app">Escribile a Moni</a>
+        <a class="btn ghost" href="/app">Entrar a la web</a>
+      </div>
+      <p class="fine" id="beta-note">Prototipo en Avalanche Fuji (testnet): AVAX de prueba, sin valor real.</p>
+    </div>
+
+    <div class="chat" aria-label="Ejemplo de conversación con Moni">
+      <div class="chat-head">
+        <span class="avatar"><span class="mark"></span></span>
+        <div><b>Moni</b><div class="fine">en línea</div></div>
+      </div>
+      <div class="bubble me">¿cuánto tengo?</div>
+      <div class="bubble moni">Tenés <span class="mono">4,82 AVAX</span>. Esta semana mandaste <span class="mono">1,5</span> y pagaste <span class="mono">0,0004</span> de gas.</div>
+      <div class="bubble me audio"><span class="wave" aria-hidden="true"><i style="height:6px"></i><i style="height:14px"></i><i style="height:9px"></i><i style="height:17px"></i><i style="height:11px"></i><i style="height:15px"></i><i style="height:7px"></i><i style="height:12px"></i></span><span class="mono">0:04</span></div>
+      <div class="bubble moni">🎙️ “mandale medio a Caro”<br><br>Le mando <span class="mono">0,5 AVAX</span> a caro. Respondé <span class="mono">SI 482913</span> para confirmar. Vence en 2 minutos.</div>
+      <div class="bubble me mono">SI 482913</div>
+      <div class="bubble moni">Listo. Le llegó a caro en menos de un segundo.<br><span class="mono">testnet.snowtrace.io/tx/0x8f3c…a21e</span></div>
+    </div>
+  </div>
+</header>
+
+<section class="block" id="como">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="label">Cómo funciona</span>
+      <h2>Tres pasos, todos en el chat</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="n">01</span>
+        <h3>Le escribís o le mandás un audio</h3>
+        <p>En castellano, como te sale. Moni entiende “medio”, “lo de la pizza” y audios de la calle.</p>
+        <p class="say">“¿en qué se me fue la semana?”</p>
+      </div>
+      <div class="step">
+        <span class="n">02</span>
+        <h3>Moni te muestra el número primero</h3>
+        <p>Saldo, movimientos y gas, con el link de cada transacción. Si le pedís un envío, te dice cuánto y a quién antes de hacer nada.</p>
+        <p class="say">“Le mando 0,5 AVAX a caro. ¿Confirmás?”</p>
+      </div>
+      <div class="step">
+        <span class="n">03</span>
+        <h3>Confirmás con tu código y listo</h3>
+        <p>Respondés “SI” con el código de 6 dígitos y el envío sale por Avalanche. Te llega el link para comprobarlo.</p>
+        <p class="say">“SI 482913”</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="avalanche">
+  <div class="wrap why">
+    <div>
+      <div class="section-head">
+        <span class="label">Por qué Avalanche</span>
+        <h2>Cuando Moni dice “le llegó”, ya le llegó</h2>
+        <p>En un chat nadie espera minutos para saber si la plata salió. Avalanche cierra cada transacción en menos de un segundo, así que la respuesta de Moni es el resultado final, no una promesa.</p>
+      </div>
+      <ul>
+        <li><b>&lt; 1 s</b><p><strong>Finalidad casi instantánea</strong>La transacción queda firme antes de que Moni termine de escribir la respuesta.</p></li>
+        <li><b>centavos</b><p><strong>Comisiones bajas</strong>Mandar poco tiene sentido: el gas no se come el envío.</p></li>
+        <li><b>EVM</b><p><strong>C-Chain compatible con Ethereum</strong>Contrato verificado y wallets estándar: todo se puede auditar en el explorador.</p></li>
+      </ul>
+    </div>
+    <div class="card netcard" aria-live="polite">
+      <span class="label">Red en uso</span>
+      <div class="row"><span>Red</span><span id="net-name">Avalanche Fuji</span></div>
+      <div class="row"><span>Chain ID</span><span id="net-id">43113</span></div>
+      <div class="row"><span>Contrato</span><span id="net-contract">Publicándose</span></div>
+      <div class="row"><span>Wallet de la demo</span><span id="net-wallet">Configurándose</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="seguridad">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="label">Seguridad</span>
+      <h2>Nada se mueve sin tu sí</h2>
+      <p>La inteligencia artificial entiende lo que pedís, pero no puede mover plata. Cada envío pasa por reglas que el modelo no controla.</p>
+    </div>
+    <div class="rules">
+      <div class="card rule"><h3>Código de un solo uso</h3><p>Cada envío pide un código de 6 dígitos, atado a tu número y a esa operación. Vence a los 2 minutos y no se puede reusar.</p></div>
+      <div class="card rule"><h3>El modelo nunca firma</h3><p>La IA solo propone. La firma la hace el backend, después de tu confirmación, y guarda el hash antes de transmitir para no mandar dos veces.</p></div>
+      <div class="card rule"><h3>Agenda cerrada</h3><p>Solo se puede mandar a contactos guardados, por su nombre exacto. Si hay dos “Caro”, Moni pregunta.</p></div>
+      <div class="card rule"><h3>Topes por envío</h3><p>Hay un máximo por transferencia, y se chequea el saldo más el gas antes de proponer.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap web">
+    <div class="section-head" style="margin-bottom:0">
+      <span class="label">También en la web</span>
+      <h2>Todo lo del chat, a la vista</h2>
+      <p>Entrás con tu número y un código que te llega por WhatsApp. Sin contraseñas.</p>
+      <ul>
+        <li>Saldo y wallet, con link al explorador.</li>
+        <li>Movimientos y envíos, con su estado.</li>
+        <li>Tu agenda de contactos.</li>
+        <li>Envíos que se confirman por WhatsApp.</li>
+      </ul>
+      <div class="ctas" style="margin-top:8px"><a class="btn primary" href="/app">Entrar a la web</a></div>
+    </div>
+    <div class="card preview" aria-hidden="true">
+      <span class="label">Saldo</span>
+      <span class="bal">4,82 AVAX</span>
+      <div class="line"><span>caro</span><span class="mono">−0,5 AVAX · enviada</span></div>
+      <div class="line"><span>juan</span><span class="mono">−1 AVAX · enviada</span></div>
+      <div class="line"><span>Recarga</span><span class="mono">+5 AVAX</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="/"><span class="mark"></span><span class="word">moni</span></a>
+    <span>HackaTwin 2026 · Digital House, Buenos Aires · Prototipo en Avalanche Fuji, sin valor real.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Datos reales de la red y el número de WhatsApp.
+  fetch("/api/public").then((r) => r.json()).then((d) => {
+    const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
+    const link = (url, text) => { const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = text; return a; };
+    if (d.contract) document.getElementById("net-contract").replaceChildren(link(d.contract.url, short(d.contract.address) + " ↗"));
+    if (d.wallet) document.getElementById("net-wallet").replaceChildren(link(d.wallet.url, short(d.wallet.address) + " ↗"));
+    if (d.whatsapp) {
+      const cta = document.getElementById("cta-wa");
+      cta.href = d.whatsapp.link; cta.target = "_blank"; cta.rel = "noopener";
+    }
+    if (d.privateBeta) document.getElementById("beta-note").textContent =
+      "Prueba privada en Avalanche Fuji (testnet): AVAX de prueba, sin valor real.";
+  }).catch(() => {});
+
+  // La trama del brand book: celdas que se encienden con una matriz Bayer 8×8 sobre una onda.
+  const canvas = document.getElementById("trama");
+  const ctx = canvas.getContext("2d");
+  const fr = (x) => x - Math.floor(x);
+  const b2 = (x, y) => fr(x * 0.5 + y * y * 0.75);
+  const b4 = (x, y) => b2(Math.floor(x * 0.5), Math.floor(y * 0.5)) * 0.25 + b2(x, y);
+  const b8 = (x, y) => b4(Math.floor(x * 0.5), Math.floor(y * 0.5)) * 0.25 + b2(x, y);
+  const CELL = 9;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let w = 0, h = 0;
+  function size() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    w = canvas.clientWidth; h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--celeste");
+    const cols = Math.ceil(w / CELL), rows = Math.ceil(h / CELL);
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const u = x / cols, v = y / rows;
+      // Ondas que cruzan de izquierda a derecha, solo en la mitad derecha (el texto queda limpio).
+      const wave = 0.5 + 0.5 * Math.sin(u * 9 - t * 0.0006 + Math.sin(v * 5 + t * 0.0003) * 1.4);
+      const L = wave * Math.min(1, Math.max(0, (u - 0.5) * 2.2 + (v - 0.5) * 0.4));
+      if (L > b8(x, y) + 0.02) ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2.5, CELL - 2.5);
+    }
+    if (!reduce) requestAnimationFrame(draw);
+  }
+  size(); addEventListener("resize", size); requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

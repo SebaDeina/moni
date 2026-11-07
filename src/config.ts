@@ -31,7 +31,12 @@ const Env = z.object({
   // Agenda compartida: "juan=0xabc...,maria=0xdef..."
   CONTACTS: optional,
 
+  // Web: número de WhatsApp de Moni para los links de la landing (formato libre, se muestra tal cual)
+  MONI_WHATSAPP_NUMBER: optional,
+  PUBLIC_DIR: z.string().default("./public"),
+
   // Avalanche Fuji
+  CONTRACT_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
   FUJI_RPC_URL: z.string().url().default("https://api.avax-test.network/ext/bc/C/rpc"),
   WALLET_PRIVATE_KEY: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(),
   AVALANCHE_DATA_API_KEY: optional,

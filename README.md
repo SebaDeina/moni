@@ -51,6 +51,17 @@ npm run dev            # http://localhost:3000/health
 
 Para recibir el webhook de Kapso en local, exponer el puerto con un túnel HTTPS (por ejemplo `cloudflared tunnel --url http://localhost:3000`) y configurar `https://<túnel>/webhooks/kapso` en Kapso.
 
+## Web
+
+- **Landing**: `https://moni.nimbodata.com` (`public/index.html`).
+- **Plataforma**: `https://moni.nimbodata.com/app` (`public/app/index.html` + `public/assets/app.js`). Se entra con el número de WhatsApp y un código de 6 dígitos que llega por WhatsApp (vence en 5 minutos, máximo 3 pedidos cada 10 minutos y 5 intentos). Muestra saldo, wallet, contrato, actividad y agenda.
+- **Envíos desde la web**: la web propone y la confirmación llega por WhatsApp con `SI <código>`, con las mismas reglas que el chat (`prepareTransfer` en `src/operations.ts`).
+- **API**: `src/web/api.ts` (`/api/public`, `/api/auth/*`, `/api/me`, `/api/me/activity`, `/api/transfers`).
+- Diseño según el brand book (`brand/marca.html`): Azul Moni sobre papel, Geist y Geist Mono, logo generado con la misma grilla.
+- Prueba: `npm run e2e:web` (landing, login, panel, envío confirmado por WhatsApp).
+
+Un mismo usuario es el mismo número en WhatsApp y en la web: los celulares argentinos se guardan sin el 9 (`src/phone.ts`).
+
 ## Agente (Claude)
 
 El agente usa el SDK oficial de Anthropic (`@anthropic-ai/sdk`) con `claude-haiku-5-5`, effort `low` y un loop propio de herramientas (máximo 5 vueltas): para un chat con 4 herramientas alcanza, y es rápido y barato. Con Opus 5.5, Opus 5, Sonnet 5.5 o Fable 5.1 se activa además el fallback del servidor (`fallbacks: "default"`), que reintenta con otro modelo si el pedido se declina por una política de seguridad. Se configura con `ANTHROPIC_API_KEY`, `MONI_CLAUDE_MODEL` y `MONI_CLAUDE_EFFORT`.

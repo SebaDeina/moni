@@ -12,6 +12,7 @@ ENV NODE_ENV=production DATABASE_PATH=/data/moni.db BAILEYS_AUTH_DIR=/data/baile
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+COPY public ./public
 VOLUME /data
 EXPOSE 3000
 CMD ["node", "--disable-warning=ExperimentalWarning", "dist/index.js"]

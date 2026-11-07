@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moni · Tu cuenta</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/moni.css">
+<style>
+  [hidden] { display: none !important; }
+  header.top { border-bottom: 1px solid var(--linea); background: var(--superficie); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 12px; }
+  header.top .who { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--grafito); }
+  main { padding-block: 32px 64px; }
+
+  /* Login */
+  .login { min-height: calc(100vh - 140px); display: grid; place-items: center; padding-block: 40px; }
+  .login .card { width: min(420px, 100%); display: grid; gap: 18px; padding: 28px; }
+  .login h1 { font-size: 30px; }
+  .login p { color: var(--grafito); }
+  .error { color: var(--alerta); font-size: 15px; min-height: 1.2em; }
+  .link-btn { background: none; border: 0; padding: 0; font: inherit; color: var(--azul-texto); cursor: pointer; text-decoration: underline; }
+
+  /* Panel */
+  .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start; }
+  .stack { display: grid; gap: 20px; min-width: 0; }
+  .balance { display: grid; gap: 10px; }
+  .balance .amount { font: 500 clamp(36px, 6vw, 54px) / 1 var(--mono); letter-spacing: -0.03em; }
+  .balance .pending { font-size: 15px; color: var(--grafito); }
+  .meta { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--linea); }
+  .meta .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 15px; }
+  .meta .row span:first-child { color: var(--grafito); }
+  .addr { display: inline-flex; align-items: center; gap: 8px; font: 14px var(--mono); }
+  .copy { font: 500 12px var(--mono); border: 1px solid var(--linea); background: var(--papel); color: var(--tinta); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+
+  .send form { display: grid; gap: 14px; }
+  .send .row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+  .notice { border-radius: 12px; padding: 14px 16px; background: var(--bruma); font-size: 15px; display: grid; gap: 4px; }
+  .notice.alerta { background: var(--alerta-suave); color: var(--alerta); }
+  .notice b { font-weight: 600; }
+
+  .list { display: grid; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding-block: 14px; border-top: 1px solid var(--linea); align-items: center; }
+  .item:first-child { border-top: 0; padding-top: 4px; }
+  .item .what { font-weight: 500; overflow-wrap: anywhere; }
+  .item .when { font: 13px var(--mono); color: var(--grafito); }
+  .item .amt { font: 500 15px var(--mono); text-align: right; }
+  .item .side { display: grid; justify-items: end; gap: 6px; }
+  .empty { color: var(--grafito); font-size: 15px; padding-block: 8px; }
+  .card h2 { font-size: 20px; letter-spacing: -0.02em; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .card h2 .label { letter-spacing: .06em; }
+  .tabs { display: inline-flex; gap: 4px; background: var(--papel); border: 1px solid var(--linea); border-radius: 999px; padding: 3px; }
+  .tabs button { font: 500 13px var(--display); border: 0; background: none; color: var(--grafito); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+    .send .row2 { grid-template-columns: 1fr; }
+    header.top .who .phone { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="Moni, inicio"><span class="mark"></span><span class="word">moni</span></a>
+    <div class="who" id="who" hidden>
+      <span class="chip"><span class="dot"></span>Avalanche Fuji</span>
+      <span class="phone mono" id="who-phone"></span>
+      <button class="btn ghost" id="logout" type="button" style="padding:9px 14px;font-size:14px">Salir</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Login: número → código por WhatsApp -->
+  <section class="login" id="view-login" hidden>
+    <div class="card">
+      <span class="mark dither" style="width:48px;height:48px;color:var(--azul-texto)"></span>
+      <div id="step-phone">
+        <form id="form-phone" style="display:grid;gap:16px">
+          <h1>Entrá con tu WhatsApp</h1>
+          <p>Te mandamos un código de 6 dígitos al mismo número con el que hablás con Moni.</p>
+          <label class="field">Tu número, con código de país
+            <input id="phone" class="mono" type="tel" inputmode="tel" autocomplete="tel" placeholder="54 11 2345 6789" required>
+          </label>
+          <p class="error" id="phone-error" role="alert"></p>
+          <button class="btn primary" type="submit">Mandarme el código</button>
+        </form>
+      </div>
+      <div id="step-code" hidden>
+        <form id="form-code" style="display:grid;gap:16px">
+          <h1>Revisá tu WhatsApp</h1>
+          <p>Te mandamos el código a <span class="mono" id="sent-to"></span>. Vence en 5 minutos.</p>
+          <label class="field">Código
+            <input id="code" class="mono" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required style="letter-spacing:.3em;font-size:22px">
+          </label>
+          <p class="error" id="code-error" role="alert"></p>
+          <button class="btn primary" type="submit">Entrar</button>
+          <button class="link-btn" type="button" id="change-phone">Usar otro número</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Panel -->
+  <section id="view-app" hidden>
+    <div class="grid">
+      <div class="stack">
+        <div class="card balance">
+          <span class="label">Saldo</span>
+          <span class="amount" id="balance">—</span>
+          <span class="pending" id="balance-note" hidden>La conexión con Avalanche se está terminando: el saldo va a aparecer acá.</span>
+          <div class="meta">
+            <div class="row"><span>Wallet</span><span id="wallet">Todavía sin configurar</span></div>
+            <div class="row"><span>Red</span><span class="mono">Avalanche Fuji · 43113</span></div>
+            <div class="row"><span>Contrato</span><span id="contract">Publicándose</span></div>
+            <div class="row"><span>Máximo por envío</span><span class="mono" id="max"></span></div>
+          </div>
+        </div>
+
+        <div class="card send">
+          <h2>Mandar plata</h2>
+          <form id="form-send">
+            <div class="row2">
+              <label class="field">A quién
+                <select id="send-alias" required></select>
+              </label>
+              <label class="field">Cuánto (AVAX)
+                <input id="send-amount" class="mono" inputmode="decimal" placeholder="0,5" required>
+              </label>
+            </div>
+            <button class="btn primary" type="submit" id="send-btn">Pedir confirmación por WhatsApp</button>
+            <div class="notice" id="send-notice" hidden aria-live="polite"></div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Agenda <span class="label" id="contacts-count"></span></h2>
+          <div class="list" id="contacts"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Actividad
+          <span class="tabs" role="group" aria-label="Período">
+            <button type="button" data-period="today" aria-pressed="false">Hoy</button>
+            <button type="button" data-period="week" aria-pressed="true">Semana</button>
+            <button type="button" data-period="month" aria-pressed="false">Mes</button>
+          </span>
+        </h2>
+        <div class="list" id="activity"><p class="empty">Cargando…</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

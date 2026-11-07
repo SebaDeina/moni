@@ -3,6 +3,8 @@
  * El agente y el backend solo usan estas funciones; ninguna otra parte importa viem.
  * Montos siempre en wei (bigint).
  */
+import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../config.js";
 
 export type Period = "today" | "week" | "month";
 
@@ -69,4 +71,10 @@ export async function sendNativeTransfer(args: {
   throw new NotImplemented("sendNativeTransfer");
 }
 
+/** Dirección pública de la wallet de la demo (derivada de WALLET_PRIVATE_KEY), o null si no está configurada. */
+export function walletAddress(): `0x${string}` | null {
+  return config.WALLET_PRIVATE_KEY ? privateKeyToAccount(config.WALLET_PRIVATE_KEY as `0x${string}`).address : null;
+}
+
 export const explorerTxUrl = (hash: string) => `https://testnet.snowtrace.io/tx/${hash}`;
+export const explorerAddressUrl = (address: string) => `https://testnet.snowtrace.io/address/${address}`;
